@@ -1,6 +1,6 @@
 [package]
 name = "bakit"
-version = "0.3.0"
+version = "0.3.1"
 description = "BAKit — chụp, sửa ảnh, ghi chú, việc, lịch và checklist dự án cho BA"
 edition = "2021"
 
@@ -25,6 +25,9 @@ tauri-plugin-process = "2.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 xcap = "0.8"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
 
 [profile.release]
 codegen-units = 1

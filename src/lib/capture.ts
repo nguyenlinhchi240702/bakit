@@ -1,17 +1,30 @@
 // Capture orchestration. Windows: hide BAKit → grab all monitors in Rust → one frozen overlay window per monitor.
 // Browser demo: getDisplayMedia frame → in-page overlay.
 import { useStore } from './store';
-import { grabScreens, hideMainWindow, isTauri, showMainWindow, type ScreenShot } from './platform';
+import { grabScreens, hideMainWindow, isMac, isTauri, showMainWindow, type ScreenShot } from './platform';
 import { sleep } from './util';
 
 export interface Rect { x: number; y: number; w: number; h: number }
 const SHOTS_KEY = 'bakit.captureShots';
 let busy = false;
+let watchdog: ReturnType<typeof setTimeout> | undefined;
+
+/** Close any capture overlay and make BAKit usable again (also used when a capture gets stuck). */
+async function resetCapture(showMain = true) {
+  clearTimeout(watchdog);
+  if (isTauri) await closeOverlays().catch(() => undefined);
+  if (showMain) await showMainWindow().catch(() => undefined);
+  busy = false;
+}
 
 export async function startCapture(target?: { kind: 'item' | 'task' | 'meeting'; id: string }) {
-  if (busy) return;
-  busy = true;
   const store = useStore.getState();
+  if (busy) {
+    if (!isTauri) return;
+    // Pressing the shortcut again while a capture is open (or stuck) starts over.
+    await resetCapture(false);
+  }
+  busy = true;
   useStore.setState({ captureTarget: target || null });
   try {
     if (!isTauri) {
@@ -19,16 +32,26 @@ export async function startCapture(target?: { kind: 'item' | 'task' | 'meeting';
       useStore.setState({ webShots: shots });
       return;
     }
+    const { invoke } = await import('@tauri-apps/api/core');
+    if (isMac && !(await invoke<boolean>('screen_access', { request: true }))) {
+      busy = false;
+      await showMainWindow();
+      store.showToast('BAKit chưa có quyền Ghi màn hình. Bật BAKit trong System Settings › Quyền riêng tư › Ghi màn hình, rồi thoát (⌘Q) và mở lại BAKit.', 'err',
+        { label: 'Mở cài đặt', run: () => { invoke('open_screen_settings'); } });
+      return;
+    }
+    await closeOverlays().catch(() => undefined); // leftovers from an interrupted capture
     await hideMainWindow();
-    await sleep(220); // let Windows finish hiding BAKit so it never appears in the shot
+    await sleep(isMac ? 650 : 220); // let BAKit disappear (and macOS switch back to the previous Space) before grabbing
     const shots = await grabScreens();
     localStorage.setItem(SHOTS_KEY, JSON.stringify(shots));
     await openOverlays(shots);
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => { if (busy) { resetCapture(); useStore.getState().showToast('Đã hủy chụp vùng (quá 3 phút)', 'info'); } }, 180000);
   } catch (e) {
-    await showMainWindow();
+    await resetCapture();
     const msg = String(e);
     store.showToast(msg.includes('NotAllowed') || msg.includes('Permission') ? 'Đã hủy chụp màn hình' : 'Không chụp được màn hình: ' + msg, 'err');
-    busy = false;
   } finally {
     if (!isTauri) busy = false;
   }
@@ -55,10 +78,20 @@ async function openOverlays(shots: ScreenShot[]) {
         await w.setPosition(new PhysicalPosition(s.x, s.y));
         await w.setSize(new PhysicalSize(s.width, s.height));
       }
+      if (isMac) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('overlay_native', { label: 'overlay-' + s.index }).catch(() => undefined);
+        // BAKit was hidden as an app; unhide it so the overlay can appear (the main window stays hidden).
+        const { show } = await import('@tauri-apps/api/app');
+        await show().catch(() => undefined);
+      }
       await w.show();
       if (s.primary) await w.setFocus();
     });
-    w.once('tauri://error', (e) => useStore.getState().showToast('Không mở được lớp chụp: ' + JSON.stringify(e.payload), 'err'));
+    w.once('tauri://error', (e) => {
+      resetCapture();
+      useStore.getState().showToast('Không mở được lớp chụp: ' + JSON.stringify(e.payload), 'err');
+    });
   }
 }
 
@@ -77,15 +110,15 @@ async function closeOverlays() {
 }
 
 /** Main window: wire up events coming from overlay windows (Tauri only). */
+let listening = false;
 export async function listenOverlayEvents() {
-  if (!isTauri) return;
+  if (!isTauri || listening) return;
+  listening = true;
   const { listen } = await import('@tauri-apps/api/event');
   const { invoke } = await import('@tauri-apps/api/core');
   await listen<{ index: number; rect: Rect }>('capture:done', async (ev) => {
     const shot = readShots().find((s) => s.index === ev.payload.index);
-    await closeOverlays();
-    await showMainWindow();
-    busy = false;
+    await resetCapture();
     if (!shot?.path) return;
     try {
       const r = ev.payload.rect;
@@ -98,9 +131,7 @@ export async function listenOverlayEvents() {
     }
   });
   await listen('capture:cancel', async () => {
-    await closeOverlays();
-    await showMainWindow();
-    busy = false;
+    await resetCapture();
     invoke('clear_captures').catch(() => undefined);
   });
 }

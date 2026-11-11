@@ -80,8 +80,12 @@ async fn read_capture(
     width: u32,
     height: u32,
 ) -> Result<tauri::ipc::Response, String> {
-    let dir = capture_dir(&app)?.canonicalize().map_err(|e| e.to_string())?;
-    let file = PathBuf::from(&path).canonicalize().map_err(|e| e.to_string())?;
+    let dir = capture_dir(&app)?
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+    let file = PathBuf::from(&path)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
     if !file.starts_with(&dir) {
         return Err("Đường dẫn ảnh chụp không hợp lệ".to_string());
     }
@@ -115,6 +119,67 @@ fn clear_captures(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// ---------- macOS: screen-recording permission ----------
+#[cfg(target_os = "macos")]
+#[link(name = "CoreGraphics", kind = "framework")]
+extern "C" {
+    fn CGPreflightScreenCaptureAccess() -> bool;
+    fn CGRequestScreenCaptureAccess() -> bool;
+}
+
+/// true when BAKit may record the screen. On macOS, `request` shows the system prompt the first time.
+#[tauri::command]
+fn screen_access(request: bool) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        let ok = unsafe { CGPreflightScreenCaptureAccess() };
+        if !ok && request {
+            unsafe { CGRequestScreenCaptureAccess() };
+        }
+        ok
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = request;
+        true
+    }
+}
+
+/// Opens System Settings → Privacy & Security → Screen Recording (macOS).
+#[tauri::command]
+fn open_screen_settings() {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
+            .spawn();
+    }
+}
+
+/// macOS: let a capture overlay window float above full-screen apps and the menu bar,
+/// on whichever Space is currently shown. No-op elsewhere.
+#[tauri::command]
+fn overlay_native(app: tauri::AppHandle, label: String) {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(win) = app.get_webview_window(&label) {
+            if let Ok(ptr) = win.ns_window() {
+                let ns = ptr as *mut objc2::runtime::AnyObject;
+                // canJoinAllSpaces | stationary | ignoresCycle | fullScreenAuxiliary
+                let behavior: usize = (1 << 0) | (1 << 4) | (1 << 6) | (1 << 8);
+                unsafe {
+                    let _: () = objc2::msg_send![ns, setCollectionBehavior: behavior];
+                    let _: () = objc2::msg_send![ns, setLevel: 1000isize]; // screen-saver level, above the menu bar
+                }
+            }
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, label);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -130,7 +195,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             capture_monitors,
             read_capture,
-            clear_captures
+            clear_captures,
+            screen_access,
+            open_screen_settings,
+            overlay_native
         ])
         .run(tauri::generate_context!())
         .expect("BAKit gặp lỗi khi khởi động");

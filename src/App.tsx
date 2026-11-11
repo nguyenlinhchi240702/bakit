@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from './lib/store';
 import { isTauri, modKey, registerHotkey } from './lib/platform';
 import { cancelWebCapture, finishWebCapture, listenOverlayEvents, startCapture } from './lib/capture';
@@ -41,7 +41,9 @@ export default function App() {
   const dark = useTheme();
   const [dragging, setDragging] = useState(false);
 
-  useEffect(() => { init(); }, [init]);
+  // Once per app start (StrictMode would otherwise run it twice in dev).
+  const started = useRef(false);
+  useEffect(() => { if (started.current) return; started.current = true; init(); }, [init]);
 
   useEffect(() => {
     if (!ready) return;

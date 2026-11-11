@@ -206,6 +206,7 @@ export async function openDataFolder(): Promise<void> {
 export async function showMainWindow(): Promise<void> {
   if (!isTauri) return;
   const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  if (isMac) { const { show } = await import('@tauri-apps/api/app'); await show().catch(() => undefined); }
   const w = getCurrentWindow();
   await w.show();
   await w.unminimize();
@@ -215,6 +216,9 @@ export async function hideMainWindow(): Promise<void> {
   if (!isTauri) return;
   const { getCurrentWindow } = await import('@tauri-apps/api/window');
   await getCurrentWindow().hide();
+  // macOS: hiding the whole app hands focus back to the previous app — and its Space,
+  // so a full-screen page is what gets captured, not the desktop.
+  if (isMac) { const { hide } = await import('@tauri-apps/api/app'); await hide().catch(() => undefined); }
 }
 
 // ---------- Links ----------
