@@ -13,7 +13,19 @@ export interface ScreenShot {
   primary: boolean;
   src: string;      // URL the overlay can load (asset:// in Tauri, data: in browser)
   path?: string;    // file path (Tauri)
+  logical?: boolean; // macOS: x/y/lw/lh are points, not pixels
+  lw?: number;
+  lh?: number;
 }
+
+/** macOS uses ⌘ instead of Ctrl. */
+export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+/** Show a shortcut label in the platform's convention: "Ctrl+Shift+S" → "⌘⇧S" on Mac. */
+export function kb(label: string): string {
+  return isMac ? label.replace(/Ctrl\+Shift\+/g, '⌘⇧').replace(/Ctrl\+/g, '⌘').replace(/Shift\+(?=[A-Z0-9])/g, '⇧') : label;
+}
+/** Ctrl on Windows, ⌘ on Mac. */
+export const modKey = (e: { ctrlKey: boolean; metaKey: boolean }) => (isMac ? e.metaKey || e.ctrlKey : e.ctrlKey);
 
 // ---------- Clipboard ----------
 export async function copyImage(blob: Blob): Promise<void> {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from './lib/store';
-import { isTauri, registerHotkey } from './lib/platform';
+import { isTauri, modKey, registerHotkey } from './lib/platform';
 import { cancelWebCapture, finishWebCapture, listenOverlayEvents, startCapture } from './lib/capture';
 import { startReminders } from './lib/reminders';
 import { imagesFromClipboard, routeImages } from './lib/paste';
@@ -58,8 +58,8 @@ export default function App() {
     const key = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       const typing = tag === 'INPUT' || tag === 'TEXTAREA';
-      if (!isTauri && e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); startCapture(); }
-      if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'n' && !typing) { e.preventDefault(); useStore.getState().go({ name: 'today' }); setTimeout(() => window.dispatchEvent(new Event('bakit:new-task')), 50); }
+      if (!isTauri && modKey(e) && e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); startCapture(); }
+      if (modKey(e) && !e.shiftKey && e.key.toLowerCase() === 'n' && !typing) { e.preventDefault(); useStore.getState().go({ name: 'today' }); setTimeout(() => window.dispatchEvent(new Event('bakit:new-task')), 50); }
     };
     const paste = (e: ClipboardEvent) => {
       const imgs = imagesFromClipboard(e);

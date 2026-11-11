@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore, type BackupData } from '../lib/store';
 import { Icon } from '../components/Icon';
 import { Confirm } from '../components/ui';
-import { blobToDataUrl, dataFolder, dataUrlToBlob, isTauri, openDataFolder, registerHotkey, saveBlobAs } from '../lib/platform';
+import { blobToDataUrl, dataFolder, dataUrlToBlob, isTauri, kb, openDataFolder, registerHotkey, saveBlobAs } from '../lib/platform';
 import { getDb } from '../lib/db';
 import { startCapture } from '../lib/capture';
 import { fileStamp } from '../lib/dates';
@@ -19,7 +19,7 @@ export function SettingsView() {
 
   const applyHotkey = async () => {
     const ok = await registerHotkey(hotkey, () => startCapture());
-    if (!isTauri) { saveSettings({ captureHotkey: hotkey }); showToast('Bản web dùng Ctrl+Shift+S trong cửa sổ BAKit', 'info'); return; }
+    if (!isTauri) { saveSettings({ captureHotkey: hotkey }); showToast(kb('Bản web dùng Ctrl+Shift+S trong cửa sổ BAKit'), 'info'); return; }
     if (ok) { saveSettings({ captureHotkey: hotkey }); showToast('Đã đổi phím chụp thành ' + hotkey); }
     else { showToast('Không đăng ký được ' + hotkey + ' — có thể đang bị ứng dụng khác dùng', 'err'); registerHotkey(settings.captureHotkey, () => startCapture()); }
   };
@@ -102,12 +102,12 @@ export function SettingsView() {
           <label className="field"><span className="lbl">Phím toàn cục (dùng được khi BAKit chạy nền)</span>
             <div className="row"><input className="inp" value={hotkey} onChange={(e) => setHotkey(e.target.value)} /><button className="btn" onClick={applyHotkey}>Áp dụng</button></div>
           </label>
-          <span className="muted" style={{ fontSize: 12 }}>Ví dụ: CommandOrControl+Shift+S, Alt+Shift+A, F9. {isTauri ? '' : 'Bản web chỉ nhận Ctrl+Shift+S khi đang ở trong trang.'}</span>
+          <span className="muted" style={{ fontSize: 12 }}>Ví dụ: CommandOrControl+Shift+S, Alt+Shift+A, F9. {isTauri ? '' : kb('Bản web chỉ nhận Ctrl+Shift+S khi đang ở trong trang.')}</span>
           <div style={{ fontSize: 12.5, display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 6 }}>
-            <span>Dán ảnh / gắn ảnh vào mục đang mở</span><span className="kbd">Ctrl+V</span>
-            <span>Việc mới</span><span className="kbd">Ctrl+N</span>
-            <span>Undo / Redo trong trình sửa ảnh</span><span className="kbd">Ctrl+Z / Ctrl+Y</span>
-            <span>Copy ảnh đã sửa</span><span className="kbd">Ctrl+Shift+C</span>
+            <span>Dán ảnh / gắn ảnh vào mục đang mở</span><span className="kbd">{kb('Ctrl+V')}</span>
+            <span>Việc mới</span><span className="kbd">{kb('Ctrl+N')}</span>
+            <span>Undo / Redo trong trình sửa ảnh</span><span className="kbd">{kb('Ctrl+Z / Ctrl+Y')}</span>
+            <span>Copy ảnh đã sửa</span><span className="kbd">{kb('Ctrl+Shift+C')}</span>
           </div>
         </section>
 

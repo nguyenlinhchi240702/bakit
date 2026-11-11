@@ -3,7 +3,7 @@ import { useStore } from '../lib/store';
 import { Editor, type EditorApi } from '../editor/Editor';
 import { AssetThumb, Confirm, Modal } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { copyImage, copyImageAndText, copyText, pickImageFiles, saveBlobAs } from '../lib/platform';
+import { copyImage, copyImageAndText, copyText, kb, pickImageFiles, saveBlobAs } from '../lib/platform';
 import { startCapture } from '../lib/capture';
 import { routeImages } from '../lib/paste';
 import { matches } from '../lib/util';
@@ -72,9 +72,9 @@ export function ImagesView({ assetId }: { assetId?: string }) {
           <div className="drop on" style={{ width: 560, padding: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
             <Icon name="image" size={34} />
             <b style={{ fontSize: 18 }}>Chưa có ảnh</b>
-            <span className="muted">Chụp màn hình, dán ảnh bằng <span className="kbd">Ctrl+V</span> hoặc kéo file ảnh vào đây.</span>
+            <span className="muted">Chụp màn hình, dán ảnh bằng <span className="kbd">{kb('Ctrl+V')}</span> hoặc kéo file ảnh vào đây.</span>
             <div className="row">
-              <button className="btn pri" onClick={() => startCapture()}><Icon name="capture" />Chụp vùng <span className="kbd-hint">Ctrl+Shift+S</span></button>
+              <button className="btn pri" onClick={() => startCapture()}><Icon name="capture" />Chụp vùng <span className="kbd-hint">{kb('Ctrl+Shift+S')}</span></button>
               <button className="btn" onClick={async () => { const f = await pickImageFiles(); routeImages(f, 'file', f.map((x) => x.name.replace(/\.[^.]+$/, ''))); }}>Mở file…</button>
             </div>
           </div>
@@ -129,7 +129,7 @@ function NotePanel({ asset, apiRef }: { asset: Asset; apiRef: React.MutableRefOb
         <button className="btn sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAttach(true)}><Icon name="folder" size={13} />Gắn vào mục checklist…</button>
       </div>
       <div style={{ padding: '14px 16px', marginTop: 12, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--surface-2)' }}>
-        <button className="btn pri lg" style={{ width: '100%' }} onClick={() => run(async () => copyImage(await render()), 'Đã copy ảnh — Ctrl+V vào Azure / Teams / Word')}><Icon name="copy" />Copy ảnh <span className="kbd-hint">Ctrl+Shift+C</span></button>
+        <button className="btn pri lg" style={{ width: '100%' }} onClick={() => run(async () => copyImage(await render()), kb('Đã copy ảnh — Ctrl+V vào Azure / Teams / Word'))}><Icon name="copy" />Copy ảnh <span className="kbd-hint">{kb('Ctrl+Shift+C')}</span></button>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
           <button className="btn" onClick={() => run(() => copyText([note, wi].filter(Boolean).join('\n')), 'Đã copy ghi chú')} disabled={!note && !wi}>Copy ghi chú</button>
           <button className="btn" onClick={() => run(async () => copyImageAndText(await render(), [note, wi].filter(Boolean).join('\n')), 'Đã copy ảnh + ghi chú', 'thử Copy ảnh và Copy ghi chú riêng')}>Copy ảnh + ghi chú</button>
@@ -138,7 +138,7 @@ function NotePanel({ asset, apiRef }: { asset: Asset; apiRef: React.MutableRefOb
           <button className="btn ghost sm" onClick={saveFile}><Icon name="download" size={13} />Lưu ra file {settings.exportFormat.toUpperCase()}</button>
           <button className="btn ghost sm dngo" onClick={() => (refs.length ? showToast('Ảnh đang gắn với ' + refs.join(', ') + ' — gỡ ra trước khi xóa', 'err') : setAskDel(true))}><Icon name="trash" size={13} />Xóa ảnh</button>
         </div>
-        <span className="muted" style={{ fontSize: 11.5, textAlign: 'center' }}>Dán vào Repro Steps hoặc Discussion trên Azure bằng Ctrl+V</span>
+        <span className="muted" style={{ fontSize: 11.5, textAlign: 'center' }}>Dán vào Repro Steps hoặc Discussion trên Azure bằng {kb('Ctrl+V')}</span>
       </div>
       {attach ? <AttachModal asset={asset} onClose={() => setAttach(false)} /> : null}
       {askDel ? <Confirm title="Xóa ảnh này?" danger okLabel="Xóa vĩnh viễn" body="Ảnh gốc, bản đã sửa và ghi chú sẽ bị xóa khỏi máy." onOk={async () => { await deleteAsset(asset.id); go({ name: 'images' }); showToast('Đã xóa ảnh'); }} onClose={() => setAskDel(false)} /> : null}

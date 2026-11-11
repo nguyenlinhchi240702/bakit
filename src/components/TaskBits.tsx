@@ -6,7 +6,7 @@ import { AssetThumb, Check, Modal } from './ui';
 import { ddmm, hhmm, relDay, toIso, todayKey } from '../lib/dates';
 import type { DueEntry } from '../lib/selectors';
 import { taskLate } from '../lib/selectors';
-import { pickImageFiles } from '../lib/platform';
+import { kb, pickImageFiles } from '../lib/platform';
 import { startCapture } from '../lib/capture';
 import { pushImageHandler } from '../lib/paste';
 
@@ -186,7 +186,7 @@ export function TaskModal({ task, date, onClose }: { task?: Task; date?: string;
           })}
         </div>
         <div className="row">
-          <span className="muted" style={{ fontSize: 12 }}>{task ? 'Ctrl+V để dán ảnh vào việc này' : 'Lưu việc trước, sau đó dán ảnh'}</span>
+          <span className="muted" style={{ fontSize: 12 }}>{task ? kb('Ctrl+V để dán ảnh vào việc này') : 'Lưu việc trước, sau đó dán ảnh'}</span>
           <button className="btn sm" style={{ marginLeft: 'auto' }} onClick={addFiles}>Chọn file</button>
           {task ? <button className="btn sm" onClick={() => { onClose(); startCapture({ kind: 'task', id: task.id }); }}>Chụp mới</button> : null}
         </div>

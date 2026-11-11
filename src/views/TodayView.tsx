@@ -6,6 +6,7 @@ import { ItemDueRow, QuickAdd, TaskModal, TaskRow } from '../components/TaskBits
 import { MiniCalendar } from '../components/MiniCalendar';
 import { AssetThumb } from '../components/ui';
 import type { Task } from '../lib/types';
+import { kb } from '../lib/platform';
 
 export function TodayView() {
   const { tasks, items, projects, assets, notes, setDayNote, go } = useStore();
@@ -80,7 +81,7 @@ export function TodayView() {
             <div className="between"><span className="lbl">Ảnh chụp hôm nay · {todayShots.length}</span><button className="btn ghost sm" onClick={() => go({ name: 'images' })}>Mở</button></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
               {todayShots.map((a) => <AssetThumb key={a.id} asset={a} w="100%" h={70} onClick={() => go({ name: 'images', assetId: a.id })} />)}
-              <div className="drop" style={{ height: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11.5, color: 'var(--text-3)', textAlign: 'center' }}>Ctrl+V để dán</div>
+              <div className="drop" style={{ height: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11.5, color: 'var(--text-3)', textAlign: 'center' }}>{kb('Ctrl+V')} để dán</div>
             </div>
           </div>
         </section>

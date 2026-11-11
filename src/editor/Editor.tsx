@@ -8,7 +8,7 @@ import { useBlobUrl } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { ShapeNode, type ShapeEvents } from './Shapes';
 import { uid, clamp } from '../lib/util';
-import { copyImage } from '../lib/platform';
+import { copyImage, isMac, kb } from '../lib/platform';
 
 export interface EditorApi { render: (format?: 'png' | 'jpg' | 'webp') => Promise<Blob> }
 
@@ -25,7 +25,7 @@ const QUICK = ['#E5484D', '#2B6CF0', '#F5B400'];
 const MORE = ['#111317', '#FFFFFF', '#16A34A'];
 const RATIOS: Array<[string, number | null]> = [['Tự do', null], ['1:1', 1], ['4:3', 4 / 3], ['16:9', 16 / 9]];
 const HINTS: Record<ToolId, string> = {
-  select: 'Click chọn · Shift+Click chọn nhiều · kéo để di chuyển · Ctrl+D nhân bản · Del xóa',
+  select: kb('Click chọn · Shift+Click chọn nhiều · kéo để di chuyển · Ctrl+D nhân bản · Del xóa'),
   arrow: 'Kéo để vẽ mũi tên · Esc về Chọn', rect: 'Kéo để vẽ khung', ellipse: 'Kéo để vẽ elip', line: 'Kéo để vẽ đường thẳng',
   text: 'Click để gõ chữ · Enter xuống dòng · Esc / click ra ngoài để xong', number: 'Click để đặt số tiếp theo',
   crop: 'Kéo khung cắt · Enter áp dụng · Esc hủy · ảnh gốc giữ nguyên', erase: 'Tô để xóa thành trong suốt',
@@ -384,7 +384,7 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
       if (ctrl && e.shiftKey && k === 'c') { e.preventDefault(); copyRendered(); return; }
       if (ctrl && k === 'c') {
         e.preventDefault();
-        if (keyState.current.sel.length) { clipboard.current = selShapes.map((s) => ({ ...s })); showToast('Đã copy ' + sel.length + ' đối tượng · Ctrl+V để dán trong ảnh'); }
+        if (keyState.current.sel.length) { clipboard.current = selShapes.map((s) => ({ ...s })); showToast('Đã copy ' + sel.length + kb(' đối tượng · Ctrl+V để dán trong ảnh')); }
         else copyRendered();
         return;
       }
@@ -417,7 +417,7 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
   });
 
   const wheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
-    if (!e.evt.ctrlKey) return;
+    if (!e.evt.ctrlKey && !e.evt.metaKey) return; // trackpad pinch on Mac arrives as ctrl+wheel
     e.evt.preventDefault();
     const stage = e.target.getStage()!;
     const p = stage.getPointerPosition()!;
@@ -513,8 +513,8 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
           </span>
         ))}
         <span style={{ width: 26, height: 1, background: 'var(--border)', margin: '3px 0' }} />
-        <button className="tool" aria-label="Undo (Ctrl+Z)" disabled={!past.current.length} style={{ opacity: past.current.length ? 1 : 0.4 }} onClick={() => { undo(); force((x) => x + 1); }}><Icon name="undo" size={18} /><span className="tipx tip">Undo <span className="kbd">Ctrl+Z</span></span></button>
-        <button className="tool" aria-label="Redo (Ctrl+Y)" disabled={!future.current.length} style={{ opacity: future.current.length ? 1 : 0.4 }} onClick={() => { redo(); force((x) => x + 1); }}><Icon name="redo" size={18} /><span className="tipx tip">Redo <span className="kbd">Ctrl+Y</span></span></button>
+        <button className="tool" aria-label={kb('Undo (Ctrl+Z)')} disabled={!past.current.length} style={{ opacity: past.current.length ? 1 : 0.4 }} onClick={() => { undo(); force((x) => x + 1); }}><Icon name="undo" size={18} /><span className="tipx tip">Undo <span className="kbd">{kb('Ctrl+Z')}</span></span></button>
+        <button className="tool" aria-label={kb('Redo (Ctrl+Y)')} disabled={!future.current.length} style={{ opacity: future.current.length ? 1 : 0.4 }} onClick={() => { redo(); force((x) => x + 1); }}><Icon name="redo" size={18} /><span className="tipx tip">Redo <span className="kbd">{kb('Ctrl+Y')}</span></span></button>
         <button className={'tool' + (original ? ' on' : '')} aria-label="Giữ để xem ảnh gốc" onMouseDown={() => setOriginal(true)} onMouseUp={() => setOriginal(false)} onMouseLeave={() => setOriginal(false)}><Icon name="eye" size={18} /><span className="tipx tip">Giữ để xem ảnh gốc <span className="kbd">\</span></span></button>
       </div>
 
@@ -549,9 +549,9 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
           {selShapes.length ? (
             <span className="row" style={{ gap: 4, borderLeft: '1px solid var(--border)', paddingLeft: 10 }}>
               <span className="muted" style={{ fontSize: 12 }}>{selShapes.length} đã chọn</span>
-              <button className="btn ghost sm sq" title="Nhân bản (Ctrl+D)" aria-label="Nhân bản" onClick={() => dup()}><Icon name="copy" size={14} /></button>
-              <button className="btn ghost sm sq" title="Lên trên (Ctrl+])" aria-label="Lên trên" onClick={() => order(1)}><Icon name="up" size={14} /></button>
-              <button className="btn ghost sm sq" title="Xuống dưới (Ctrl+[)" aria-label="Xuống dưới" onClick={() => order(-1)}><Icon name="down" size={14} /></button>
+              <button className="btn ghost sm sq" title={kb('Nhân bản (Ctrl+D)')} aria-label="Nhân bản" onClick={() => dup()}><Icon name="copy" size={14} /></button>
+              <button className="btn ghost sm sq" title={kb('Lên trên (Ctrl+])')} aria-label="Lên trên" onClick={() => order(1)}><Icon name="up" size={14} /></button>
+              <button className="btn ghost sm sq" title={kb('Xuống dưới (Ctrl+[)')} aria-label="Xuống dưới" onClick={() => order(-1)}><Icon name="down" size={14} /></button>
               <button className="btn ghost sm sq" title="Xóa (Del)" aria-label="Xóa đối tượng" onClick={del}><Icon name="trash" size={14} /></button>
             </span>
           ) : null}
@@ -573,10 +573,10 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
         <button className="btn ghost sm sq" style={{ height: 22, width: 22 }} aria-label="Thu nhỏ" onClick={() => setZoomMode(clamp(z / 1.25, 0.05, 8))}>−</button>
         <span className="val" style={{ height: 20, minWidth: 50 }}>{Math.round(z * 100)}%</span>
         <button className="btn ghost sm sq" style={{ height: 22, width: 22 }} aria-label="Phóng to" onClick={() => setZoomMode(clamp(z * 1.25, 0.05, 8))}>+</button>
-        <button className="btn ghost sm" style={{ height: 22, padding: '0 8px' }} title="Ctrl+0" onClick={() => setZoomMode('fit')}>Fit</button>
-        <button className="btn ghost sm" style={{ height: 22, padding: '0 8px' }} title="Ctrl+1" onClick={() => setZoomMode(1)}>100%</button>
+        <button className="btn ghost sm" style={{ height: 22, padding: '0 8px' }} title={kb('Ctrl+0')} onClick={() => setZoomMode('fit')}>Fit</button>
+        <button className="btn ghost sm" style={{ height: 22, padding: '0 8px' }} title={kb('Ctrl+1')} onClick={() => setZoomMode(1)}>100%</button>
         <span className="vsep" />
-        <span className="muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{original ? 'Đang xem ảnh gốc — thả để quay lại' : HINTS[tool]} · Space+kéo: di chuyển · Ctrl+cuộn: zoom</span>
+        <span className="muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{original ? 'Đang xem ảnh gốc — thả để quay lại' : HINTS[tool]} · Space+kéo: di chuyển · {isMac ? 'Chụm 2 ngón / ⌘+cuộn' : kb('Ctrl+cuộn')}: zoom</span>
       </div>
 
       {askSwitch ? (

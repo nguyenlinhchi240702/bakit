@@ -4,7 +4,7 @@ import { Icon } from './Icon';
 import { Popover } from './ui';
 import { startCapture } from '../lib/capture';
 import { readClipboardImages, routeImages } from '../lib/paste';
-import { isTauri } from '../lib/platform';
+import { isTauri, kb } from '../lib/platform';
 import { matches } from '../lib/util';
 import { ddmm } from '../lib/dates';
 import type { View } from '../lib/types';
@@ -44,7 +44,7 @@ export function Topbar() {
 
   const paste = async () => {
     const imgs = await readClipboardImages();
-    if (imgs === null) { useStore.getState().showToast('Bấm Ctrl+V để dán ảnh (trình duyệt chặn đọc clipboard trực tiếp)', 'info'); return; }
+    if (imgs === null) { useStore.getState().showToast(kb('Bấm Ctrl+V để dán ảnh (trình duyệt chặn đọc clipboard trực tiếp)'), 'info'); return; }
     if (!imgs.length) { useStore.getState().showToast('Clipboard chưa có hình ảnh', 'err'); return; }
     routeImages(imgs, 'paste');
   };
@@ -56,11 +56,11 @@ export function Topbar() {
         <b style={{ fontSize: 15 }}>BAKit</b>
       </div>
       <button className="btn pri" style={{ height: 36 }} onClick={() => startCapture()} title={isTauri ? 'Chụp vùng màn hình' : 'Trình duyệt sẽ hỏi bạn chọn màn hình để chụp'}>
-        <Icon name="capture" />Chụp vùng <span className="kbd-hint">Ctrl+Shift+S</span>
+        <Icon name="capture" />Chụp vùng <span className="kbd-hint">{kb('Ctrl+Shift+S')}</span>
       </button>
-      <button className="btn" style={{ height: 36 }} onClick={paste}><Icon name="paste" />Dán ảnh <span className="muted kbd-hint">Ctrl+V</span></button>
+      <button className="btn" style={{ height: 36 }} onClick={paste}><Icon name="paste" />Dán ảnh <span className="muted kbd-hint">{kb('Ctrl+V')}</span></button>
       <button className="btn" style={{ height: 36 }} onClick={() => { go({ name: 'today' }); setTimeout(() => window.dispatchEvent(new Event('bakit:new-task')), 50); }}>
-        <Icon name="plus" />Việc mới <span className="muted kbd-hint">Ctrl+N</span>
+        <Icon name="plus" />Việc mới <span className="muted kbd-hint">{kb('Ctrl+N')}</span>
       </button>
       <div style={{ position: 'relative', marginLeft: 12 }}>
         <label className="inp" style={{ width: 380, height: 36 }}>

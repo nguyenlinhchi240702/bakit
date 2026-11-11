@@ -36,17 +36,25 @@ export async function startCapture(target?: { kind: 'item' | 'task'; id: string 
 
 async function openOverlays(shots: ScreenShot[]) {
   const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-  const { PhysicalPosition, PhysicalSize } = await import('@tauri-apps/api/dpi');
+  const { PhysicalPosition, PhysicalSize, LogicalPosition, LogicalSize } = await import('@tauri-apps/api/dpi');
   for (const s of shots) {
     const w = new WebviewWindow('overlay-' + s.index, {
       url: 'index.html?overlay=' + s.index,
       decorations: false, alwaysOnTop: true, skipTaskbar: true, resizable: false, visible: false,
-      focus: true, shadow: false, transparent: false,
-      x: s.x / s.scale, y: s.y / s.scale, width: s.width / s.scale, height: s.height / s.scale
+      focus: true, shadow: false, transparent: false, visibleOnAllWorkspaces: true,
+      ...(s.logical
+        ? { x: s.x, y: s.y, width: s.lw ?? s.width / s.scale, height: s.lh ?? s.height / s.scale }
+        : { x: s.x / s.scale, y: s.y / s.scale, width: s.width / s.scale, height: s.height / s.scale })
     });
     w.once('tauri://created', async () => {
-      await w.setPosition(new PhysicalPosition(s.x, s.y));
-      await w.setSize(new PhysicalSize(s.width, s.height));
+      if (s.logical) {
+        // macOS reports monitor bounds in points.
+        await w.setPosition(new LogicalPosition(s.x, s.y));
+        await w.setSize(new LogicalSize(s.lw ?? s.width / s.scale, s.lh ?? s.height / s.scale));
+      } else {
+        await w.setPosition(new PhysicalPosition(s.x, s.y));
+        await w.setSize(new PhysicalSize(s.width, s.height));
+      }
       await w.show();
       if (s.primary) await w.setFocus();
     });

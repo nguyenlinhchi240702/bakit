@@ -15,6 +15,10 @@ struct Shot {
     scale: f32,
     primary: bool,
     path: String,
+    /// true on macOS: x/y are points (logical), so the overlay is placed with logical units.
+    logical: bool,
+    lw: f64,
+    lh: f64,
 }
 
 fn capture_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -52,6 +56,9 @@ async fn capture_monitors(app: tauri::AppHandle) -> Result<Vec<Shot>, String> {
                 scale: m.scale_factor().unwrap_or(1.0),
                 primary: m.is_primary().unwrap_or(i == 0),
                 path: path.to_string_lossy().into_owned(),
+                logical: cfg!(target_os = "macos"),
+                lw: m.width().map(f64::from).unwrap_or(img.width() as f64),
+                lh: m.height().map(f64::from).unwrap_or(img.height() as f64),
             });
         }
         if out.is_empty() {

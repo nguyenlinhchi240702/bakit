@@ -27,13 +27,15 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPCACHE/**"]
+        "scope": [
+          "$APPCACHE/**"
+        ]
       }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": "all",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -43,8 +45,17 @@
     ],
     "shortDescription": "Chụp, sửa ảnh, ghi chú, việc và checklist dự án cho BA",
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" },
-      "nsis": { "installMode": "currentUser" }
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "category": "Productivity",
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": "-"
     }
   }
 }

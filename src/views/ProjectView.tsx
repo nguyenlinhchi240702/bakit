@@ -7,7 +7,7 @@ import { AddListModal, ListConfigModal } from '../components/ListConfig';
 import { COLOR_STYLE } from '../lib/templates';
 import { ddmm, toIso, todayKey } from '../lib/dates';
 import { initials, matches } from '../lib/util';
-import { copyText, pickImageFiles } from '../lib/platform';
+import { copyText, kb, pickImageFiles } from '../lib/platform';
 import { startCapture } from '../lib/capture';
 import { pushImageHandler } from '../lib/paste';
 import type { Item } from '../lib/types';
@@ -290,7 +290,7 @@ function ItemPanel({ item }: { item: Item }) {
           <div className="drop" style={{ height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.3 }}>Kéo file<br />vào đây</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
-          <button className="btn sm" title="Bấm Ctrl+V khi đang mở mục này" onClick={() => s.showToast('Bấm Ctrl+V để dán ảnh vào ' + item.code, 'info')}>Dán <span className="muted" style={{ fontSize: 10.5 }}>Ctrl+V</span></button>
+          <button className="btn sm" title={kb('Bấm Ctrl+V khi đang mở mục này')} onClick={() => s.showToast('Bấm Ctrl+V để dán ảnh vào ' + item.code, 'info')}>Dán <span className="muted" style={{ fontSize: 10.5 }}>{kb('Ctrl+V')}</span></button>
           <button className="btn sm" onClick={addFiles}>Chọn file</button>
           <button className="btn sm" title="Chụp vùng và gắn thẳng vào mục này" onClick={() => startCapture({ kind: 'item', id: item.id })}>Chụp mới</button>
         </div>
