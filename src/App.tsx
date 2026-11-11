@@ -15,6 +15,7 @@ import { ProjectsView } from './views/ProjectsView';
 import { ProjectView } from './views/ProjectView';
 import { ImagesView } from './views/ImagesView';
 import { SettingsView } from './views/SettingsView';
+import { MeetingsView } from './views/MeetingsView';
 
 function useTheme() {
   const theme = useStore((s) => s.settings.theme);
@@ -59,6 +60,7 @@ export default function App() {
       const tag = (e.target as HTMLElement)?.tagName;
       const typing = tag === 'INPUT' || tag === 'TEXTAREA';
       if (!isTauri && modKey(e) && e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); startCapture(); }
+      if (modKey(e) && !e.shiftKey && e.key.toLowerCase() === 'b' && !typing) { e.preventDefault(); const st = useStore.getState(); st.saveSettings({ sidebarCollapsed: !st.settings.sidebarCollapsed }); }
       if (modKey(e) && !e.shiftKey && e.key.toLowerCase() === 'n' && !typing) { e.preventDefault(); useStore.getState().go({ name: 'today' }); setTimeout(() => window.dispatchEvent(new Event('bakit:new-task')), 50); }
     };
     const paste = (e: ClipboardEvent) => {
@@ -112,6 +114,7 @@ export default function App() {
     case 'project': page = <ProjectView key={view.projectId} projectId={view.projectId} listId={view.listId} />; break;
     case 'images': page = <ImagesView assetId={view.assetId} />; break;
     case 'settings': page = <SettingsView />; break;
+    case 'meetings': page = <MeetingsView group={view.group} meetingId={view.meetingId} />; break;
   }
 
   return (

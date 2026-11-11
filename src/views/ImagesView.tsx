@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../lib/store';
 import { Editor, type EditorApi } from '../editor/Editor';
-import { AssetThumb, Confirm, Modal } from '../components/ui';
+import { AssetThumb, Confirm, Modal, WorkItemChip } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { copyImage, copyImageAndText, copyText, kb, pickImageFiles, saveBlobAs } from '../lib/platform';
 import { startCapture } from '../lib/capture';
@@ -51,7 +51,7 @@ export function ImagesView({ assetId }: { assetId?: string }) {
                   <AssetThumb asset={a} w={84} h={52} />
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
                     <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.note.split('\n')[0] || a.name}</span>
-                    <span className="row" style={{ gap: 6, fontSize: 11.5 }}><span className="muted">{timeOf(a.createdAt)}</span>{a.workItem ? <span className="chip blue" style={{ height: 18, fontSize: 11 }}>{a.workItem}</span> : null}</span>
+                    <span className="row" style={{ gap: 6, fontSize: 11.5 }}><span className="muted">{timeOf(a.createdAt)}</span><WorkItemChip value={a.workItem} style={{ height: 18, fontSize: 11 }} /></span>
                   </span>
                 </button>
               ))}
@@ -129,10 +129,10 @@ function NotePanel({ asset, apiRef }: { asset: Asset; apiRef: React.MutableRefOb
         <button className="btn sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAttach(true)}><Icon name="folder" size={13} />Gắn vào mục checklist…</button>
       </div>
       <div style={{ padding: '14px 16px', marginTop: 12, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--surface-2)' }}>
-        <button className="btn pri lg" style={{ width: '100%' }} onClick={() => run(async () => copyImage(await render()), kb('Đã copy ảnh — Ctrl+V vào Azure / Teams / Word'))}><Icon name="copy" />Copy ảnh <span className="kbd-hint">{kb('Ctrl+Shift+C')}</span></button>
+        <button className="btn pri lg" style={{ width: '100%' }} onClick={() => run(() => copyImage(render()), kb('Đã copy ảnh — Ctrl+V vào Azure / Teams / Word'))}><Icon name="copy" />Copy ảnh <span className="kbd-hint">{kb('Ctrl+Shift+C')}</span></button>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
           <button className="btn" onClick={() => run(() => copyText([note, wi].filter(Boolean).join('\n')), 'Đã copy ghi chú')} disabled={!note && !wi}>Copy ghi chú</button>
-          <button className="btn" onClick={() => run(async () => copyImageAndText(await render(), [note, wi].filter(Boolean).join('\n')), 'Đã copy ảnh + ghi chú', 'thử Copy ảnh và Copy ghi chú riêng')}>Copy ảnh + ghi chú</button>
+          <button className="btn" onClick={() => run(() => copyImageAndText(render(), [note, wi].filter(Boolean).join('\n')), 'Đã copy ảnh + ghi chú', 'thử Copy ảnh và Copy ghi chú riêng')}>Copy ảnh + ghi chú</button>
         </div>
         <div className="row" style={{ justifyContent: 'center' }}>
           <button className="btn ghost sm" onClick={saveFile}><Icon name="download" size={13} />Lưu ra file {settings.exportFormat.toUpperCase()}</button>

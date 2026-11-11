@@ -2,14 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../lib/store';
 import { addDays, longDate, shortDay, todayKey } from '../lib/dates';
 import { byTime, dueItems, taskLate } from '../lib/selectors';
-import { ItemDueRow, QuickAdd, TaskModal, TaskRow } from '../components/TaskBits';
+import { ItemDueRow, MeetingRow, QuickAdd, TaskModal, TaskRow } from '../components/TaskBits';
+import { Icon } from '../components/Icon';
 import { MiniCalendar } from '../components/MiniCalendar';
 import { AssetThumb } from '../components/ui';
 import type { Task } from '../lib/types';
 import { kb } from '../lib/platform';
 
 export function TodayView() {
-  const { tasks, items, projects, assets, notes, setDayNote, go } = useStore();
+  const { tasks, items, projects, assets, notes, meetings, setDayNote, go } = useStore();
+  const todayMeetings = meetings.filter((m) => m.date === todayKey()).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
   const T = todayKey();
   const [edit, setEdit] = useState<Task | null>(null);
   const due = useMemo(() => dueItems(projects, items), [projects, items]);
@@ -54,6 +56,17 @@ export function TodayView() {
             <span className="chip blue">{todayTasks.filter((t) => t.kind === 'event').length} lịch hẹn</span>
           </div>
         </div>
+        {projects.length === 0 && tasks.length === 0 ? (
+          <div className="card" style={{ padding: '16px 18px', display: 'flex', gap: 14, alignItems: 'center', borderColor: 'var(--accent)' }}>
+            <Icon name="upload" size={22} style={{ color: 'var(--accent)' }} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <b>Bắt đầu với dữ liệu thật của bạn</b>
+              <span className="muted" style={{ fontSize: 12.5 }}>Điền file Excel mẫu (dự án, checklist, người, mục họp, việc lặp lại) rồi nhập một lần — hoặc tạo dự án đầu tiên bằng tay.</span>
+            </div>
+            <button className="btn pri" onClick={() => go({ name: 'settings' })}>Nhập từ Excel</button>
+            <button className="btn" onClick={() => go({ name: 'projects' })}>Tạo dự án</button>
+          </div>
+        ) : null}
         <QuickAdd />
 
         {lateTasks.length + lateItems.length ? (
@@ -66,7 +79,8 @@ export function TodayView() {
 
         <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <b>Hôm nay</b>
-          {todayTasks.length + todayItems.length === 0 ? <div className="muted" style={{ fontSize: 13, padding: '6px 2px' }}>Chưa có việc nào cho hôm nay. Gõ vào ô phía trên để thêm.</div> : null}
+          {todayMeetings.map((m) => <MeetingRow key={m.id} meeting={m} />)}
+          {todayTasks.length + todayItems.length + todayMeetings.length === 0 ? <div className="muted" style={{ fontSize: 13, padding: '6px 2px' }}>Chưa có việc nào cho hôm nay. Gõ vào ô phía trên để thêm.</div> : null}
           {todayTasks.map((t) => <TaskRow key={t.id} task={t} onOpen={setEdit} />)}
           {todayItems.map((e) => <ItemDueRow key={e.item.id} entry={e} />)}
         </section>

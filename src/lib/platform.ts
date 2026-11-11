@@ -28,15 +28,34 @@ export function kb(label: string): string {
 export const modKey = (e: { ctrlKey: boolean; metaKey: boolean }) => (isMac ? e.metaKey || e.ctrlKey : e.ctrlKey);
 
 // ---------- Clipboard ----------
-export async function copyImage(blob: Blob): Promise<void> {
+// Safari / macOS WebView only allow clipboard writes while the click is still "active",
+// so the ClipboardItem is created synchronously with *promises* for slow data (rendering).
+// Chromium accepts the same; anything that still fails falls back to the desktop plugin.
+type BlobLike = Blob | Promise<Blob>;
+
+async function writeItem(make: () => Record<string, BlobLike>, settle: () => Promise<Record<string, Blob>>): Promise<boolean> {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') return false;
   try {
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    return;
-  } catch (err) {
-    if (!isTauri) throw err;
+    await navigator.clipboard.write([new ClipboardItem(make())]);
+    return true;
+  } catch {
+    // Some engines reject promise values: retry once with resolved blobs.
+    try {
+      await navigator.clipboard.write([new ClipboardItem(await settle())]);
+      return true;
+    } catch {
+      return false;
+    }
   }
+}
+
+export async function copyImage(blob: BlobLike): Promise<void> {
+  const png = Promise.resolve(blob);
+  const ok = await writeItem(() => ({ 'image/png': png }), async () => ({ 'image/png': await png }));
+  if (ok) return;
+  if (!isTauri) throw new Error('Trình duyệt không cho ghi ảnh vào clipboard');
   const { writeImage } = await import('@tauri-apps/plugin-clipboard-manager');
-  await writeImage(new Uint8Array(await blob.arrayBuffer()));
+  await writeImage(new Uint8Array(await (await png).arrayBuffer()));
 }
 
 export async function copyText(text: string): Promise<void> {
@@ -50,18 +69,25 @@ export async function copyText(text: string): Promise<void> {
   await writeText(text);
 }
 
-/** Image + note as one clipboard item (HTML for rich editors like Azure DevOps, plus PNG and plain text). */
-export async function copyImageAndText(blob: Blob, text: string): Promise<void> {
-  const dataUrl = await blobToDataUrl(blob);
-  const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');
-  const html = `<div><p>${esc}</p><img src="${dataUrl}"></div>`;
-  await navigator.clipboard.write([
-    new ClipboardItem({
-      'text/html': new Blob([html], { type: 'text/html' }),
-      'text/plain': new Blob([text], { type: 'text/plain' }),
-      'image/png': blob
-    })
-  ]);
+function noteHtml(text: string, dataUrl: string): string {
+  const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+  return `<div>${esc ? `<p>${esc}</p>` : ''}<img src="${dataUrl}"></div>`;
+}
+
+/** Image + note as one clipboard item (HTML for rich editors like Azure DevOps / Teams / Word, plus PNG and plain text). */
+export async function copyImageAndText(blob: BlobLike, text: string): Promise<void> {
+  const png = Promise.resolve(blob);
+  const html = png.then(async (b) => new Blob([noteHtml(text, await blobToDataUrl(b))], { type: 'text/html' }));
+  const plain = new Blob([text], { type: 'text/plain' });
+  const ok = await writeItem(
+    () => ({ 'text/html': html, 'text/plain': plain, 'image/png': png }),
+    async () => ({ 'text/html': await html, 'text/plain': plain, 'image/png': await png })
+  );
+  if (ok) return;
+  if (!isTauri) throw new Error('Trình duyệt không cho ghi ảnh + chữ vào clipboard');
+  // Desktop fallback: HTML (note + embedded image) with the note as plain-text alternative.
+  const { writeHtml } = await import('@tauri-apps/plugin-clipboard-manager');
+  await writeHtml(noteHtml(text, await blobToDataUrl(await png)), text);
 }
 
 export function blobToDataUrl(blob: Blob): Promise<string> {
@@ -189,4 +215,21 @@ export async function hideMainWindow(): Promise<void> {
   if (!isTauri) return;
   const { getCurrentWindow } = await import('@tauri-apps/api/window');
   await getCurrentWindow().hide();
+}
+
+// ---------- Links ----------
+export async function openUrl(url: string): Promise<void> {
+  if (isTauri) {
+    const { openUrl: open } = await import('@tauri-apps/plugin-opener');
+    await open(url);
+    return;
+  }
+  window.open(url, '_blank', 'noopener');
+}
+
+/** "#12345" / "AB#12345" → https://dev.azure.com/org/project/_workitems/edit/12345 (when an Azure link is set). */
+export function workItemUrl(workItem: string | undefined, base: string | undefined): string | undefined {
+  const m = workItem?.match(/(\d{2,})/);
+  if (!m || !base?.trim()) return undefined;
+  return base.trim().replace(/\/+$/, '') + '/_workitems/edit/' + m[1];
 }

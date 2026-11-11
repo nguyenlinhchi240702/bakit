@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { Asset, ChecklistDef, Collection, DayNote, Item, Project, Settings, Task, View } from './types';
+import type { Asset, ChecklistDef, Collection, DayNote, Item, Meeting, Project, Settings, Task, View } from './types';
 import { getDb, forgetBlobUrl } from './db';
 import { uid } from './util';
 import { addDays, addMonths, fileStamp, nowStamp, todayKey } from './dates';
 import type { ScreenShot } from './platform';
-import { defaultLists } from './templates';
+import { startingLists } from './templates';
 
 export interface ToastAction { label: string; run: () => void }
 export interface Toast { id: number; text: string; kind: 'ok' | 'err' | 'info'; action?: ToastAction }
@@ -22,10 +22,11 @@ interface State {
   tasks: Task[];
   projects: Project[];
   items: Item[];
+  meetings: Meeting[];
   view: View;
   toast: Toast | null;
   webShots: ScreenShot[] | null;       // in-page capture overlay (browser demo)
-  captureTarget: { kind: 'item' | 'task'; id: string } | null; // attach next capture to this record
+  captureTarget: { kind: 'item' | 'task' | 'meeting'; id: string } | null; // attach next capture to this record
 
   init(): Promise<void>;
   go(v: View): void;
@@ -62,6 +63,11 @@ interface State {
   attachAssetToItem(itemId: string, assetId: string): void;
   attachAssetToTask(taskId: string, assetId: string): void;
 
+  addMeeting(m: Partial<Meeting>): Meeting;
+  updateMeeting(id: string, patch: Partial<Meeting>): void;
+  deleteMeeting(id: string): void;
+  attachAssetToMeeting(id: string, assetId: string): void;
+
   resetAll(): Promise<void>;
   importData(data: BackupData, blobs: Record<string, Blob>): Promise<void>;
 }
@@ -75,6 +81,7 @@ export interface BackupData {
   tasks: Task[];
   projects: Project[];
   items: Item[];
+  meetings?: Meeting[];
 }
 
 function persist(col: Collection, rec: { id: string }) {
@@ -118,6 +125,7 @@ export const useStore = create<State>((set, get) => ({
   tasks: [],
   projects: [],
   items: [],
+  meetings: [],
   view: { name: 'today' },
   toast: null,
   webShots: null,
@@ -126,9 +134,9 @@ export const useStore = create<State>((set, get) => ({
   async init() {
     try {
       const db = await getDb();
-      const [settingsArr, assets, notes, tasks, projects, items] = await Promise.all([
+      const [settingsArr, assets, notes, tasks, projects, items, meetings] = await Promise.all([
         db.all<Settings>('settings'), db.all<Asset>('assets'), db.all<DayNote>('notes'),
-        db.all<Task>('tasks'), db.all<Project>('projects'), db.all<Item>('items')
+        db.all<Task>('tasks'), db.all<Project>('projects'), db.all<Item>('items'), db.all<Meeting>('meetings')
       ]);
       const settings = { ...DEFAULT_SETTINGS, ...(settingsArr[0] || {}) };
       const noteMap: Record<string, DayNote> = {};
@@ -136,13 +144,11 @@ export const useStore = create<State>((set, get) => ({
       set({
         settings,
         assets: assets.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-        notes: noteMap, tasks, projects: projects.sort((a, b) => a.order - b.order), items, ready: true
+        notes: noteMap, tasks, projects: projects.sort((a, b) => a.order - b.order), items, meetings, ready: true
       });
-      if (!settings.seeded) {
-        const { seedDemo } = await import('./seed');
-        seedDemo();
-        get().saveSettings({ seeded: true });
-      }
+      // Fresh installs start empty: data comes from the Excel template (Cài đặt → Nhập từ Excel)
+      // or the optional demo set.
+      if (!settings.seeded) get().saveSettings({ seeded: true });
     } catch (e) {
       set({ fatal: 'Không mở được dữ liệu: ' + String(e), ready: true });
     }
@@ -203,6 +209,7 @@ export const useStore = create<State>((set, get) => ({
     const refs: string[] = [];
     get().items.forEach((i) => i.assetIds.includes(id) && refs.push(i.code));
     get().tasks.forEach((t) => t.assetIds.includes(id) && refs.push(t.title));
+    get().meetings.forEach((m) => m.assetIds.includes(id) && refs.push('Họp: ' + m.title));
     return refs;
   },
   async deleteAsset(id) {
@@ -247,7 +254,15 @@ export const useStore = create<State>((set, get) => ({
     const done = !t.done;
     get().updateTask(id, { done }, done ? 'Đã xong: ' + t.title : undefined);
     const nextDate = done ? nextRepeat(t) : undefined;
-    if (nextDate) get().addTask({ ...t, date: nextDate, done: false, reminded: false, remindAt: undefined, title: t.title });
+    if (nextDate) {
+      // Keep the same reminder offset on the next occurrence.
+      let remindAt: string | undefined;
+      if (t.remindAt && t.date) {
+        const shift = new Date(nextDate + 'T00:00:00').getTime() - new Date(t.date + 'T00:00:00').getTime();
+        remindAt = new Date(new Date(t.remindAt).getTime() + shift).toISOString();
+      }
+      get().addTask({ ...t, date: nextDate, done: false, reminded: false, remindAt, title: t.title });
+    }
   },
   deleteTask(id) {
     const prev = get().tasks.find((t) => t.id === id);
@@ -260,7 +275,7 @@ export const useStore = create<State>((set, get) => ({
   // ---------- Projects ----------
   addProject(p) {
     const project: Project = {
-      client: '', phase: '', color: '#2B5BE3', pinned: true, order: get().projects.length, lists: defaultLists(),
+      client: '', phase: '', color: '#2B5BE3', pinned: true, order: get().projects.length, lists: startingLists(get().settings.listTemplate),
       createdAt: new Date().toISOString(), ...p, id: uid('p')
     };
     set({ projects: [...get().projects, project] });
@@ -364,9 +379,38 @@ export const useStore = create<State>((set, get) => ({
     get().updateTask(taskId, { assetIds: [...t.assetIds, assetId] });
   },
 
+  // ---------- Meetings ----------
+  addMeeting(m) {
+    const now = new Date().toISOString();
+    const meeting: Meeting = {
+      title: '', date: todayKey(), attendees: '', content: '', decisions: '', actions: [], assetIds: [],
+      createdAt: now, updatedAt: now, ...m, id: uid('m')
+    };
+    set({ meetings: [meeting, ...get().meetings] });
+    persist('meetings', meeting);
+    return meeting;
+  },
+  updateMeeting(id, patch) {
+    let next: Meeting | undefined;
+    set({ meetings: get().meetings.map((m) => (m.id === id ? (next = { ...m, ...patch, updatedAt: new Date().toISOString() }) : m)) });
+    if (next) persist('meetings', next);
+  },
+  deleteMeeting(id) {
+    const prev = get().meetings.find((m) => m.id === id);
+    if (!prev) return;
+    set({ meetings: get().meetings.filter((m) => m.id !== id) });
+    remove('meetings', id);
+    get().showToast('Đã xóa ghi chú họp “' + (prev.title || 'Không tên') + '”', 'ok', { label: 'Hoàn tác', run: () => { set({ meetings: [prev, ...get().meetings] }); persist('meetings', prev); } });
+  },
+  attachAssetToMeeting(id, assetId) {
+    const m = get().meetings.find((x) => x.id === id);
+    if (!m || m.assetIds.includes(assetId)) return;
+    get().updateMeeting(id, { assetIds: [...m.assetIds, assetId] });
+  },
+
   async resetAll() {
     await (await getDb()).clearAll();
-    set({ assets: [], notes: {}, tasks: [], projects: [], items: [], view: { name: 'today' } });
+    set({ assets: [], notes: {}, tasks: [], projects: [], items: [], meetings: [], view: { name: 'today' } });
     const settings = { ...get().settings, seeded: true };
     set({ settings });
     persist('settings', settings);
@@ -377,7 +421,7 @@ export const useStore = create<State>((set, get) => ({
     await db.clearAll();
     for (const [k, b] of Object.entries(blobs)) await db.putBlob(k, b);
     const all: Array<[Collection, { id: string }[]]> = [
-      ['assets', data.assets], ['notes', data.notes], ['tasks', data.tasks], ['projects', data.projects], ['items', data.items], ['settings', [data.settings]]
+      ['assets', data.assets], ['notes', data.notes], ['tasks', data.tasks], ['projects', data.projects], ['items', data.items], ['meetings', data.meetings || []], ['settings', [data.settings]]
     ];
     for (const [col, rows] of all) for (const r of rows) await db.put(col, r.id, r);
     await get().init();

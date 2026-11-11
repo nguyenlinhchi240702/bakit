@@ -76,6 +76,7 @@ export interface Project {
   lists: ChecklistDef[];
   createdAt: string;
   archived?: boolean;
+  short?: string;              // 2–3 letter badge; defaults to initials of the name
 }
 export interface HistoryLine { t: string; txt: string }
 export interface Item {
@@ -96,6 +97,27 @@ export interface Item {
   order: number;
 }
 
+// ---------- Meetings ----------
+export interface MeetingCat { id: string; name: string; desc?: string; schedule?: string; people?: string }
+export interface MeetingAction { id: string; text: string; owner: string; due?: string; done: boolean; taskId?: string }
+export interface Meeting {
+  id: string;
+  title: string;
+  date: string;                // YYYY-MM-DD
+  time?: string;               // HH:mm
+  end?: string;
+  projectId?: string;          // belongs to a project…
+  catId?: string;              // …or to a standalone category (Họp nội bộ, Daily…)
+  attendees: string;           // comma separated names
+  content: string;             // free notes / agenda / discussion
+  decisions: string;           // kết luận
+  actions: MeetingAction[];
+  assetIds: string[];
+  workItem?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ---------- Settings ----------
 export interface Settings {
   id: 'settings';
@@ -103,10 +125,15 @@ export interface Settings {
   captureHotkey: string;       // e.g. CommandOrControl+Shift+S
   exportFormat: 'png' | 'jpg' | 'webp';
   people: string[];            // quick-pick owners
+  peopleInfo?: Record<string, { role?: string; org?: string }>;
   seeded: boolean;
+  sidebarCollapsed?: boolean;
+  meetingCats?: MeetingCat[];
+  azureBase?: string;
+  listTemplate?: ChecklistDef[]; // checklist types/statuses new projects start with (from the Excel import)          // https://dev.azure.com/org/project → work items open in the browser
 }
 
-export type Collection = 'assets' | 'notes' | 'tasks' | 'projects' | 'items' | 'settings';
+export type Collection = 'assets' | 'notes' | 'tasks' | 'projects' | 'items' | 'meetings' | 'settings';
 
 export type View =
   | { name: 'today' }
@@ -115,4 +142,5 @@ export type View =
   | { name: 'projects' }
   | { name: 'project'; projectId: string; listId?: string; itemId?: string }
   | { name: 'images'; assetId?: string }
+  | { name: 'meetings'; group?: string; meetingId?: string }   // group: 'all' | 'p:<projectId>' | 'c:<catId>'
   | { name: 'settings' };

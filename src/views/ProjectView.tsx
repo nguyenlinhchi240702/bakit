@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../lib/store';
 import { Icon } from '../components/Icon';
-import { AssetThumb, Avatar, Check, Confirm, PeopleInput, Popover, StatusPill } from '../components/ui';
+import { AssetThumb, Avatar, Check, Confirm, PeopleInput, Popover, StatusPill, WorkItemChip } from '../components/ui';
 import { ProjectModal } from '../components/ProjectModal';
 import { AddListModal, ListConfigModal } from '../components/ListConfig';
 import { COLOR_STYLE } from '../lib/templates';
 import { ddmm, toIso, todayKey } from '../lib/dates';
-import { initials, matches } from '../lib/util';
+import { matches } from '../lib/util';
+import { projectBadge } from '../components/Sidebar';
 import { copyText, kb, pickImageFiles } from '../lib/platform';
 import { startCapture } from '../lib/capture';
 import { pushImageHandler } from '../lib/paste';
@@ -82,7 +83,7 @@ export function ProjectView({ projectId, listId }: { projectId: string; listId?:
               <div className="mhd">Chuyển dự án · ghim để hiện ở menu trái</div>
               {projects.filter((p) => !p.archived).map((p) => (
                 <div key={p.id} className={'mi' + (p.id === project.id ? ' hl' : '')} style={{ height: 44, cursor: 'pointer' }} onClick={() => { go({ name: 'project', projectId: p.id }); setProjMenu(false); }}>
-                  <span style={{ width: 26, height: 26, borderRadius: 6, background: p.color, color: '#fff', fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>{initials(p.name)}</span>
+                  <span style={{ width: 26, height: 26, borderRadius: 6, background: p.color, color: '#fff', fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>{projectBadge(p)}</span>
                   <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25, minWidth: 0 }}><b>{p.name}</b><span className="muted" style={{ fontSize: 11.5 }}>{p.phase || p.client || '—'}</span></span>
                   <button className="btn ghost sm sq" style={{ marginLeft: 'auto', color: p.pinned ? 'var(--accent-text)' : 'var(--text-3)' }} aria-label={p.pinned ? 'Bỏ ghim' : 'Ghim'} title={p.pinned ? 'Bỏ ghim' : 'Ghim ra menu trái'}
                     onClick={(e) => { e.stopPropagation(); s.togglePin(p.id); }}><Icon name="pin" size={14} style={{ fill: p.pinned ? 'currentColor' : 'none' }} /></button>
@@ -92,7 +93,10 @@ export function ProjectView({ projectId, listId }: { projectId: string; listId?:
               <button className="mi" onClick={() => { go({ name: 'projects' }); setProjMenu(false); }}>Tất cả dự án →</button>
             </Popover>
           </div>
-          <button className="btn sm" onClick={() => setCfg(true)}><Icon name="columns" size={14} />Cột &amp; trạng thái</button>
+          <div className="row" style={{ gap: 6 }}>
+            <button className="btn sm" onClick={() => go({ name: 'meetings', group: 'p:' + project.id })}><Icon name="meeting" size={14} />Cuộc họp · {s.meetings.filter((m) => m.projectId === project.id).length}</button>
+            <button className="btn sm" onClick={() => setCfg(true)}><Icon name="columns" size={14} />Cột &amp; trạng thái</button>
+          </div>
         </div>
 
         <div className="row" style={{ gap: 2, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' }}>
@@ -156,7 +160,7 @@ export function ProjectView({ projectId, listId }: { projectId: string; listId?:
                   {c.note ? <span className="muted" style={{ width: 170, padding: '0 8px', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.note || '—'}</span> : null}
                   {c.attach ? <span style={{ width: 70, display: 'flex', gap: 4 }}>
                     {it.assetIds.length ? <span className="chip" style={{ height: 20, padding: '0 6px' }}><Icon name="image" size={12} />{it.assetIds.length}</span> : null}
-                    {it.workItem ? <span className="chip blue" style={{ height: 20, padding: '0 5px' }} title={'Azure ' + it.workItem}>AZ</span> : null}
+                    <WorkItemChip value={it.workItem} label="AZ" style={{ height: 20, padding: '0 5px' }} />
                   </span> : null}
                 </div>
               );
@@ -245,8 +249,8 @@ function ItemPanel({ item }: { item: Item }) {
   };
   const copy = async () => {
     const text = `${item.code} · ${item.title}\nDự án: ${project.name} › ${list.name}\nTrạng thái: ${st?.name || '—'}${item.owner ? '\nNgười: ' + item.owner : ''}${item.due ? '\nHạn: ' + ddmm(item.due) : ''}${item.workItem ? '\nWork item: ' + item.workItem : ''}${item.note ? '\nGhi chú: ' + item.note : ''}`;
-    await copyText(text);
-    s.showToast('Đã copy ' + item.code);
+    try { await copyText(text); s.showToast('Đã copy ' + item.code); }
+    catch (e) { s.showToast('Không copy được: ' + String(e), 'err'); }
   };
 
   return (

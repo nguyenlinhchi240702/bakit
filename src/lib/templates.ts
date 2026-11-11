@@ -19,6 +19,15 @@ export function defaultLists(): ChecklistDef[] {
   ];
 }
 
+/** Fresh copy (new ids, seq 0) of a checklist template — every project needs its own ids. */
+export function cloneLists(defs: ChecklistDef[]): ChecklistDef[] {
+  return defs.map((l) => ({ ...l, id: uid('l'), seq: 0, cols: { ...l.cols }, statuses: l.statuses.map((x) => ({ ...x, id: uid('s') })) }));
+}
+/** Checklist types for a new project: the user's own template when imported, else the built-in five. */
+export function startingLists(template?: ChecklistDef[]): ChecklistDef[] {
+  return template?.length ? cloneLists(template) : defaultLists();
+}
+
 export function customList(name: string, prefix: string): ChecklistDef {
   return {
     id: uid('l'), name, prefix: prefix.toUpperCase().slice(0, 3) || 'X', catLabel: 'Phân loại', seq: 0, cols: { ...cols },

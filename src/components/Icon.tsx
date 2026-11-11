@@ -36,6 +36,9 @@ const P: Record<string, ReactNode> = {
   refresh: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" />,
   warn: <><path d="M12 3l10 18H2z" /><path d="M12 10v4M12 17.5v.5" /></>,
   shield: <><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="M9 12l2 2 4-4" /></>,
+  meeting: <><path d="M4 5h16v11H9l-4 3v-3H4z" /><path d="M8 9h8M8 12h5" /></>,
+  sidebar: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></>,
+  upload: <path d="M12 20V9M7 14l5-5 5 5M5 4h14" />,
   monitor: <><rect x="3" y="4" width="18" height="12" rx="1.5" /><path d="M9 20h6M12 16v4" /></>,
   // editor tools
   select: <path d="M5 3l14 7-6 2-2 6z" />,

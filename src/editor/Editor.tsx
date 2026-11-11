@@ -27,7 +27,7 @@ const RATIOS: Array<[string, number | null]> = [['Tự do', null], ['1:1', 1], [
 const HINTS: Record<ToolId, string> = {
   select: kb('Click chọn · Shift+Click chọn nhiều · kéo để di chuyển · Ctrl+D nhân bản · Del xóa'),
   arrow: 'Kéo để vẽ mũi tên · Esc về Chọn', rect: 'Kéo để vẽ khung', ellipse: 'Kéo để vẽ elip', line: 'Kéo để vẽ đường thẳng',
-  text: 'Click để gõ chữ · Enter xuống dòng · Esc / click ra ngoài để xong', number: 'Click để đặt số tiếp theo',
+  text: 'Click để gõ chữ · Enter xuống dòng · Esc, Ctrl+Enter hoặc click ra ngoài để xong', number: 'Click để đặt số tiếp theo',
   crop: 'Kéo khung cắt · Enter áp dụng · Esc hủy · ảnh gốc giữ nguyên', erase: 'Tô để xóa thành trong suốt',
   cover: 'Kéo để phủ màu (mặc định trắng)', blur: 'Kéo vùng để làm mờ · dữ liệu nhạy cảm hãy dùng Che kín',
   redact: 'Kéo vùng để che kín — luôn flatten khi copy / xuất'
@@ -235,7 +235,7 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
       return;
     }
     if (e.evt.button !== 0 || original) return;
-    if (editingText) { setEditingText(null); return; }
+    if (editingText) { e.evt.preventDefault(); finishText(); return; }
     const p = toImg(stage);
     const id = uid('s');
     switch (tool) {
@@ -255,6 +255,8 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
         return;
       }
       case 'text': {
+        // Keep the browser from moving focus to the canvas, which would instantly blur the new text box.
+        e.evt.preventDefault();
         const s: Shape = { id, type: 'text', x: p.x, y: p.y - textSize * 0.7, text: '', color, size: textSize, bg: textBg || undefined };
         commit({ ...doc, shapes: [...doc.shapes, s] });
         setSel([id]);
@@ -363,8 +365,29 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
     });
   };
   const copyRendered = async () => {
-    try { await copyImage(await render()); showToast('Đã copy ảnh ' + Math.round(area.w) + ' × ' + Math.round(area.h) + ' vào clipboard'); }
+    try { await copyImage(render()); showToast('Đã copy ảnh ' + Math.round(area.w) + ' × ' + Math.round(area.h) + ' vào clipboard'); }
     catch (e) { showToast('Không copy được ảnh: ' + String(e), 'err'); }
+  };
+
+  // ----- text editing -----
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const textDone = useRef(false);
+  useEffect(() => {
+    if (!editingText) return;
+    textDone.current = false;
+    const raf = requestAnimationFrame(() => { const el = textRef.current; if (el) { el.focus(); el.select(); } });
+    return () => cancelAnimationFrame(raf);
+  }, [editingText]);
+  /** Save (or drop, if empty) the text being typed. Safe to call more than once. */
+  const finishText = () => {
+    const id = editingText;
+    const el = textRef.current;
+    if (!id || textDone.current) { setEditingText(null); return; }
+    textDone.current = true;
+    const v = el ? el.value : '';
+    setEditingText(null);
+    if (!v.trim()) { setDoc((cur) => ({ ...cur, shapes: cur.shapes.filter((s) => s.id !== id) })); setSel([]); }
+    else setDoc((cur) => ({ ...cur, shapes: cur.shapes.map((s) => (s.id === id ? { ...s, text: v } : s)) }));
   };
 
   // ----- keyboard -----
@@ -488,17 +511,16 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
       {tool === 'erase' && cursor ? <div style={{ position: 'absolute', left: cursor.x - (eraseSize * z) / 2, top: cursor.y - (eraseSize * z) / 2, width: eraseSize * z, height: eraseSize * z, borderRadius: '50%', border: '1.5px solid #2B5BE3', boxShadow: '0 0 0 1px #fff', pointerEvents: 'none' }} /> : null}
 
       {editingShape ? (
-        <textarea className="text-editor" autoFocus defaultValue={editingShape.text}
+        <textarea ref={textRef} key={editingShape.id} className="text-editor" autoFocus defaultValue={editingShape.text}
           style={{ left: gx + editingShape.x * z, top: gy + editingShape.y * z, fontSize: editingShape.size * z, color: editingShape.color, background: editingShape.bg || 'rgba(255,255,255,.85)', minWidth: 140, minHeight: editingShape.size * z * 1.6 }}
           onInput={(e) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; el.style.width = 'auto'; el.style.width = Math.max(140, el.scrollWidth + 4) + 'px'; }}
-          onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); (e.currentTarget as HTMLTextAreaElement).blur(); } e.stopPropagation(); }}
-          onBlur={(e) => {
-            const v = e.currentTarget.value;
-            const id = editingShape.id;
-            setEditingText(null);
-            if (!v.trim()) { setDoc((cur) => ({ ...cur, shapes: cur.shapes.filter((s) => s.id !== id) })); setSel([]); }
-            else setDoc((cur) => ({ ...cur, shapes: cur.shapes.map((s) => (s.id === id ? { ...s, text: v } : s)) }));
-          }} />
+          onMouseDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.nativeEvent.isComposing) return; // Vietnamese IME (Telex/VNI) still composing
+            if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) { e.preventDefault(); finishText(); }
+          }}
+          onBlur={() => finishText()} />
       ) : null}
 
       {/* Tool bar */}
@@ -576,7 +598,7 @@ export function Editor({ asset, apiRef }: { asset: Asset; apiRef: MutableRefObje
         <button className="btn ghost sm" style={{ height: 22, padding: '0 8px' }} title={kb('Ctrl+0')} onClick={() => setZoomMode('fit')}>Fit</button>
         <button className="btn ghost sm" style={{ height: 22, padding: '0 8px' }} title={kb('Ctrl+1')} onClick={() => setZoomMode(1)}>100%</button>
         <span className="vsep" />
-        <span className="muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{original ? 'Đang xem ảnh gốc — thả để quay lại' : HINTS[tool]} · Space+kéo: di chuyển · {isMac ? 'Chụm 2 ngón / ⌘+cuộn' : kb('Ctrl+cuộn')}: zoom</span>
+        <span className="muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{original ? 'Đang xem ảnh gốc — thả để quay lại' : kb(HINTS[tool])} · Space+kéo: di chuyển · {isMac ? 'Chụm 2 ngón / ⌘+cuộn' : kb('Ctrl+cuộn')}: zoom</span>
       </div>
 
       {askSwitch ? (

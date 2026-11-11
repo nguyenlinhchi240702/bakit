@@ -4,11 +4,11 @@ import { addDays, addMonths, ddmm, DOW_SHORT, dow, longDate, monthGridStart, mon
 import { byTime, dueItems, taskLate } from '../lib/selectors';
 import { Icon } from '../components/Icon';
 import { Check } from '../components/ui';
-import { ItemDueRow, QuickAdd, TaskModal, TaskRow } from '../components/TaskBits';
+import { ItemDueRow, MeetingRow, QuickAdd, TaskModal, TaskRow } from '../components/TaskBits';
 import type { Task } from '../lib/types';
 
 export function CalendarView({ mode }: { mode: 'week' | 'month' }) {
-  const { tasks, items, projects, assets, notes, go, view, toggleTask, tickItem, updateTask, showToast } = useStore();
+  const { tasks, items, projects, assets, notes, meetings, go, view, toggleTask, tickItem, updateTask, showToast } = useStore();
   const T = todayKey();
   const initial = view.name === 'calendar' && view.date ? view.date : T;
   const [anchor, setAnchor] = useState(initial);
@@ -29,6 +29,7 @@ export function CalendarView({ mode }: { mode: 'week' | 'month' }) {
 
   const dayTasks = (d: string) => tasks.filter((t) => t.date === d).sort(byTime);
   const dayItems = (d: string) => due.filter((e) => e.item.due === d);
+  const dayMeetings = (d: string) => meetings.filter((m) => m.date === d).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
   const lateTasks = tasks.filter((t) => taskLate(t, T));
   const lateItems = due.filter((e) => !e.done && e.item.due! < T);
 
@@ -47,6 +48,15 @@ export function CalendarView({ mode }: { mode: 'week' | 'month' }) {
 
   const chip = (d: string, compact: boolean) => (
     <>
+      {dayMeetings(d).map((m) => {
+        const pc = m.projectId ? projects.find((p) => p.id === m.projectId)?.color : undefined;
+        return (
+          <button key={m.id} onClick={(e) => { e.stopPropagation(); go({ name: 'meetings', group: 'all', meetingId: m.id }); }} className={compact ? 'mini-chip' : ''} title={'Cuộc họp: ' + m.title}
+            style={compact ? { background: 'var(--purple-soft)', color: 'var(--purple)', border: 0, textAlign: 'left' } : { padding: '6px 8px', borderRadius: 6, background: 'var(--purple-soft)', color: 'var(--purple)', fontSize: 12, lineHeight: 1.3, border: 0, borderLeft: '3px solid ' + (pc || 'var(--purple)'), textAlign: 'left' }}>
+            {compact ? (m.time ? m.time + ' ' : '') + m.title : <><b style={{ fontSize: 11.5 }}>Họp{m.time ? ' · ' + m.time + (m.end ? '–' + m.end : '') : ''}</b><br />{m.title}</>}
+          </button>
+        );
+      })}
       {dayTasks(d).map((t) => t.kind === 'event' ? (
         <button key={t.id} onClick={(e) => { e.stopPropagation(); setEdit(t); }} className={compact ? 'mini-chip' : ''}
           style={compact ? { background: 'var(--accent-soft)', color: 'var(--accent-text)', border: 0, textAlign: 'left' } : { padding: '6px 8px', borderRadius: 6, background: 'var(--accent-soft)', color: 'var(--accent-text)', fontSize: 12, lineHeight: 1.3, border: 0, borderLeft: '3px solid var(--accent)', textAlign: 'left' }}>
@@ -127,7 +137,7 @@ export function CalendarView({ mode }: { mode: 'week' | 'month' }) {
             </div>
             <div style={{ flex: 1, minHeight: 480, display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gridTemplateRows: 'repeat(6, minmax(0, 1fr))', gap: 6 }}>
               {Array.from({ length: 42 }, (_, i) => addDays(monthGridStart(anchor), i)).map((d) => {
-                const n = dayTasks(d).length + dayItems(d).length;
+                const n = dayTasks(d).length + dayItems(d).length + dayMeetings(d).length;
                 return (
                   <div key={d} onClick={() => setSel(d)} className={'cal-cell' + (d === T ? ' today' : '') + (d.slice(5, 7) !== anchor.slice(5, 7) ? ' other' : '')}
                     style={d === sel ? { boxShadow: '0 0 0 2px var(--accent)' } : undefined}>
@@ -147,7 +157,8 @@ export function CalendarView({ mode }: { mode: 'week' | 'month' }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><span className="sec">{sel === T ? 'Hôm nay' : 'Ngày đã chọn'}</span><b style={{ fontSize: 15 }}>{longDate(sel)}</b></div>
         <QuickAdd key={sel} date={sel} autoFocusEvent={false} compact />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {dayTasks(sel).length + dayItems(sel).length === 0 ? <span className="muted" style={{ fontSize: 12.5 }}>Chưa có việc hay lịch hẹn.</span> : null}
+          {dayTasks(sel).length + dayItems(sel).length + dayMeetings(sel).length === 0 ? <span className="muted" style={{ fontSize: 12.5 }}>Chưa có việc hay lịch hẹn.</span> : null}
+          {dayMeetings(sel).map((m) => <MeetingRow key={m.id} meeting={m} />)}
           {dayTasks(sel).map((t) => <TaskRow key={t.id} task={t} onOpen={setEdit} compact />)}
           {dayItems(sel).map((e) => <ItemDueRow key={e.item.id} entry={e} compact />)}
         </div>

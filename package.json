@@ -1,7 +1,7 @@
 {
   "name": "bakit",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -24,6 +24,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-konva": "^19.3.2",
+    "read-excel-file": "^9.3.14",
     "zustand": "^5.1.0"
   },
   "devDependencies": {

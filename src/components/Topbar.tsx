@@ -13,7 +13,8 @@ interface Hit { group: string; title: string; sub: string; view: View }
 
 export function Topbar() {
   const go = useStore((s) => s.go);
-  const { tasks, items, projects, assets, notes } = useStore();
+  const { tasks, items, projects, assets, notes, meetings } = useStore();
+  const collapsed = useStore((s) => !!s.settings.sidebarCollapsed);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
 
@@ -34,13 +35,18 @@ export function Topbar() {
       if (![a.name, a.note, a.workItem].some((f) => f && matches(f, q))) continue;
       out.push({ group: 'Ảnh', title: a.name, sub: (a.workItem ? a.workItem + ' · ' : '') + (a.note.split('\n')[0] || 'Chưa có ghi chú'), view: { name: 'images', assetId: a.id } });
     }
+    for (const m of meetings) {
+      if (![m.title, m.content, m.decisions, m.attendees, m.workItem || '', ...m.actions.map((a) => a.text)].some((f) => f && matches(f, q))) continue;
+      const line = [m.content, m.decisions, ...m.actions.map((a) => a.text)].join('\n').split('\n').find((l) => matches(l, q)) || m.attendees;
+      out.push({ group: 'Cuộc họp', title: m.title || 'Cuộc họp ' + ddmm(m.date), sub: ddmm(m.date) + ' · ' + line.trim(), view: { name: 'meetings', group: 'all', meetingId: m.id } });
+    }
     for (const n of Object.values(notes)) {
       if (!n.text || !matches(n.text, q)) continue;
       const line = n.text.split('\n').find((l) => matches(l, q)) || '';
       out.push({ group: 'Ghi chú ngày', title: 'Ngày ' + ddmm(n.date) + '/' + n.date.slice(0, 4), sub: line.trim(), view: { name: 'calendar', mode: 'week', date: n.date } });
     }
     return out.slice(0, 40);
-  }, [q, items, tasks, assets, notes, projects]);
+  }, [q, items, tasks, assets, notes, projects, meetings]);
 
   const paste = async () => {
     const imgs = await readClipboardImages();
@@ -51,7 +57,9 @@ export function Topbar() {
 
   return (
     <header className="topbar">
-      <div className="row" style={{ gap: 10, width: 198 }}>
+      <div className="row" style={{ gap: 10, width: collapsed ? 'auto' : 198, marginRight: collapsed ? 12 : 0 }}>
+        <button className="btn ghost sq" style={{ marginLeft: -6 }} onClick={() => useStore.getState().saveSettings({ sidebarCollapsed: !collapsed })}
+          title={(collapsed ? 'Mở rộng menu' : 'Thu gọn menu') + ' (' + kb('Ctrl+B') + ')'} aria-label={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}><Icon name="sidebar" /></button>
         <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="logo" style={{ strokeWidth: 2.2 }} /></div>
         <b style={{ fontSize: 15 }}>BAKit</b>
       </div>
@@ -65,7 +73,7 @@ export function Topbar() {
       <div style={{ position: 'relative', marginLeft: 12 }}>
         <label className="inp" style={{ width: 380, height: 36 }}>
           <Icon name="search" className="muted" />
-          <input className="ghost-input" value={q} placeholder="Tìm việc, checklist, ghi chú, ảnh, #work item…" aria-label="Tìm kiếm"
+          <input className="ghost-input" value={q} placeholder="Tìm việc, checklist, cuộc họp, ảnh, #work item…" aria-label="Tìm kiếm"
             onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} />
           {q ? <button className="btn ghost sm sq" style={{ width: 22, height: 22 }} aria-label="Xóa tìm kiếm" onClick={() => setQ('')}><Icon name="x" size={13} /></button> : null}
         </label>

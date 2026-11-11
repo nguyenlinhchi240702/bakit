@@ -5,6 +5,7 @@ import { useStore } from '../lib/store';
 import { COLOR_STYLE } from '../lib/templates';
 import type { Asset, StatusDef } from '../lib/types';
 import { colorFor, initials } from '../lib/util';
+import { openUrl, workItemUrl } from '../lib/platform';
 
 export function useBlobUrl(key?: string): string | undefined {
   const [url, setUrl] = useState<string>();
@@ -120,5 +121,17 @@ export function PeopleInput({ value, onChange, placeholder = 'Người phụ tr�
       <input className="inp" list={id} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} aria-label={placeholder} />
       <datalist id={id}>{people.map((p) => <option key={p} value={p} />)}</datalist>
     </>
+  );
+}
+
+/** Azure work item chip — clickable when an Azure DevOps link is set in Cài đặt. */
+export function WorkItemChip({ value, style, label }: { value?: string; style?: React.CSSProperties; label?: string }) {
+  const base = useStore((s) => s.settings.azureBase);
+  if (!value) return null;
+  const url = workItemUrl(value, base);
+  if (!url) return <span className="chip blue" style={style} title={'Azure ' + value}>{label || value}</span>;
+  return (
+    <a className="chip blue" style={{ cursor: 'pointer', textDecoration: 'none', ...style }} title={'Mở ' + value + ' trên Azure DevOps'} href={url}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); openUrl(url).catch(() => undefined); }}>{label || value} ↗</a>
   );
 }

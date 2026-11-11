@@ -8,7 +8,7 @@ export interface Rect { x: number; y: number; w: number; h: number }
 const SHOTS_KEY = 'bakit.captureShots';
 let busy = false;
 
-export async function startCapture(target?: { kind: 'item' | 'task'; id: string }) {
+export async function startCapture(target?: { kind: 'item' | 'task' | 'meeting'; id: string }) {
   if (busy) return;
   busy = true;
   const store = useStore.getState();
@@ -132,6 +132,11 @@ export async function saveCapture(blob: Blob, source: 'capture' | 'paste' | 'fil
   if (target?.kind === 'item') {
     s.attachAssetToItem(target.id, asset.id);
     s.showToast('Đã chụp và gắn ảnh vào mục');
+    return asset;
+  }
+  if (target?.kind === 'meeting') {
+    s.attachAssetToMeeting(target.id, asset.id);
+    s.showToast('Đã chụp và gắn ảnh vào ghi chú họp');
     return asset;
   }
   if (target?.kind === 'task') {

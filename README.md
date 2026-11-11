@@ -5,6 +5,8 @@ Công cụ cá nhân cho BA, chạy hoàn toàn trên máy (không cloud, không
 - **Chụp & sửa ảnh**: chụp vùng màn hình (nhiều màn hình), dán ảnh từ clipboard, kéo thả file; sửa bằng mũi tên, khung, elip, đường, chữ, đánh số, cắt, tẩy, phủ màu, làm mờ, che kín. Ảnh gốc luôn được giữ nguyên.
 - **Ghi chú & copy nhanh**: ghi chú và work item Azure cho mỗi ảnh; copy ảnh, ghi chú hoặc cả hai để dán vào Azure DevOps.
 - **Hôm nay / Lịch / Việc**: việc và lịch hẹn theo ngày, ghi chú theo ngày, xem theo tuần hoặc tháng, việc còn đọng, nhắc giờ, việc lặp lại.
+- **Ghi chú họp**: theo từng dự án hoặc mục riêng (Họp nội bộ, Daily…), gồm thành phần, nội dung, kết luận, việc cần làm (chuyển thành việc có nhắc giờ), ảnh đính kèm, copy biên bản. Cuộc họp hiện trên Hôm nay và Lịch.
+- **Nhập dữ liệu từ Excel**: Cài đặt → Tải file Excel mẫu → điền → Nhập từ Excel (xem trước, có cảnh báo trước khi ghi).
 - **Dự án & checklist**: nhiều dự án, mỗi dự án có checklist Tính năng / Issue / Vấn đề / Bug / Tài liệu (tự thêm được), mỗi mục có trạng thái, người, hạn, ảnh đính kèm, ghi chú và lịch sử. Có tick xong và ghim dự án ra menu bên trái.
 
 ---
@@ -59,8 +61,8 @@ npm run tauri build
 ```
 
 File cài nằm ở:
-- `src-tauri\target\release\bundle\nsis\BAKit_0.1.0_x64-setup.exe` (khuyên dùng, cài cho riêng user, không cần quyền admin)
-- `src-tauri\target\release\bundle\msi\BAKit_0.1.0_x64_en-US.msi`
+- `src-tauri\target\release\bundle\nsis\BAKit_0.2.0_x64-setup.exe` (khuyên dùng, cài cho riêng user, không cần quyền admin)
+- `src-tauri\target\release\bundle\msi\BAKit_0.2.0_x64_en-US.msi`
 
 Các lệnh khác:
 
@@ -120,7 +122,7 @@ npm run tauri build
 ```
 
 - App: `src-tauri/target/release/bundle/macos/BAKit.app`. Kéo app vào thư mục **Applications** để dùng.
-- File cài: `src-tauri/target/release/bundle/dmg/BAKit_0.1.0_aarch64.dmg` (chip M) hoặc `_x64.dmg` (chip Intel).
+- File cài: `src-tauri/target/release/bundle/dmg/BAKit_0.2.0_aarch64.dmg` (chip M) hoặc `_x64.dmg` (chip Intel).
 - Nếu bước tạo .dmg báo lỗi, chỉ tạo app là đủ: `npm run tauri build -- --bundles app`
 
 App tự build trên máy mình thì mở bình thường. Nếu copy sang Mac khác mà bị báo "không thể mở vì không xác minh được nhà phát triển":
@@ -147,6 +149,7 @@ App tự build trên máy mình thì mở bình thường. Nếu copy sang Mac k
 | `Ctrl+Shift+S` | Chụp vùng (bản cài: dùng được cả khi BAKit đang ẩn; đổi được trong Cài đặt) |
 | `Ctrl+V` | Dán ảnh. Nếu đang mở một mục checklist hoặc việc thì ảnh gắn vào mục đó, nếu không thì tạo ảnh mới |
 | `Ctrl+N` | Thêm việc mới |
+| `Ctrl+B` | Thu gọn / mở rộng menu bên trái |
 | Kéo thả file ảnh | Thêm ảnh, hoặc gắn vào mục đang mở |
 
 ### Khi chọn vùng chụp
@@ -191,6 +194,15 @@ Mẹo: dùng **Che kín (D)** cho thông tin nhạy cảm. Làm mờ (B) có th�
 
 ## 5. Dữ liệu được lưu ở đâu
 
+| Bản | Thư mục |
+|---|---|
+| macOS | `~/Library/Application Support/vn.bakit.app/` |
+| Windows | `%APPDATA%\vn.bakit.app\` (tức `C:\Users\<tên>\AppData\Roaming\vn.bakit.app\`) |
+
+Trong đó `bakit.db` là cơ sở dữ liệu SQLite (dự án, checklist, việc, ghi chú, cuộc họp, cài đặt) và thư mục `images/` chứa ảnh PNG. Cập nhật hay cài lại app không làm mất thư mục này.
+
+### Chi tiết
+
 - **Bản cài**: `%APPDATA%\vn.bakit.app\`, gồm `bakit.db` (SQLite) và thư mục `images\` (ảnh PNG gốc và ảnh đã sửa). Vào **Cài đặt → Dữ liệu → Mở thư mục** để xem.
 - **Bản web**: IndexedDB của trình duyệt.
 - Sao lưu và chuyển máy: **Cài đặt → Xuất bản sao lưu (.json)**, rồi **Khôi phục từ bản sao lưu…** trên máy mới. File sao lưu có kèm ảnh.
@@ -227,8 +239,8 @@ demo/index.html           Bản web 1 file để chạy thử
 ## 8. Build tự động trên GitHub (ra file .exe và .dmg, không cần máy Windows)
 
 Thư mục `.github/workflows/build.yml` đã có sẵn. Khi bạn đẩy code lên GitHub, GitHub sẽ tự build trong khoảng 10–20 phút và cho ra 2 file:
-- **BAKit-windows**: `BAKit_0.1.0_x64-setup.exe` và `.msi`
-- **BAKit-macos**: `BAKit_0.1.0_universal.dmg`, chạy được cả Mac chip M lẫn chip Intel
+- **BAKit-windows**: `BAKit_0.2.0_x64-setup.exe` và `.msi`
+- **BAKit-macos**: `BAKit_0.2.0_universal.dmg`, chạy được cả Mac chip M lẫn chip Intel
 
 ### Lần đầu
 1. Tạo tài khoản GitHub ở https://github.com (đã có thì bỏ qua bước này).

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useStore } from '../lib/store';
-import type { Task } from '../lib/types';
+import type { Meeting, Task } from '../lib/types';
 import { Icon } from './Icon';
-import { AssetThumb, Check, Modal } from './ui';
+import { AssetThumb, Check, Modal, WorkItemChip } from './ui';
 import { ddmm, hhmm, relDay, toIso, todayKey } from '../lib/dates';
 import type { DueEntry } from '../lib/selectors';
 import { taskLate } from '../lib/selectors';
@@ -30,7 +30,7 @@ export function TaskRow({ task, showDue, onOpen, compact }: { task: Task; showDu
         {task.kind === 'event' ? <span className="chip blue">Lịch hẹn</span> : null}
         {late ? <span className="chip red">{ddmm(task.date)}</span> : null}
         {task.repeat && task.repeat !== 'none' ? <span className="chip" title="Lặp lại"><Icon name="refresh" size={12} />{task.repeat === 'daily' ? 'Hằng ngày' : task.repeat === 'weekly' ? 'Hằng tuần' : 'Hằng tháng'}</span> : null}
-        {task.workItem ? <span className="chip blue">{task.workItem}</span> : null}
+        <WorkItemChip value={task.workItem} />
         {task.assetIds.length ? <span className="chip"><Icon name="image" size={12} />{task.assetIds.length}</span> : null}
         {task.remindAt && !task.done && !task.reminded ? <span className="chip amber"><Icon name="bell" size={12} />{hhmm(task.remindAt)}</span> : null}
       </Meta>
@@ -199,4 +199,25 @@ function toLocalInput(iso: string): string {
   const d = new Date(iso);
   const p = (n: number) => (n < 10 ? '0' : '') + n;
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+/** A meeting on a day list (Today, Calendar). Opens the meeting notes. */
+export function MeetingRow({ meeting }: { meeting: Meeting }) {
+  const projects = useStore((st) => st.projects);
+  const cats = useStore((st) => st.settings.meetingCats);
+  const go = useStore((st) => st.go);
+  const p = meeting.projectId ? projects.find((x) => x.id === meeting.projectId) : undefined;
+  const c = meeting.catId ? cats?.find((x) => x.id === meeting.catId) : undefined;
+  const left = meeting.actions.filter((a) => !a.done).length;
+  return (
+    <div className="trow compact" style={{ cursor: 'pointer', borderLeft: '3px solid ' + (p?.color || 'var(--purple)') }} onClick={() => go({ name: 'meetings', group: 'all', meetingId: meeting.id })}>
+      <Icon name="meeting" size={15} style={{ color: 'var(--purple)', flex: 'none' }} />
+      <span className="muted" style={{ fontSize: 12, flex: 'none' }}>{meeting.time ? meeting.time + (meeting.end ? '–' + meeting.end : '') : 'Họp'}</span>
+      <span style={{ flex: 1, minWidth: 0, fontWeight: 550, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meeting.title || 'Cuộc họp'}</span>
+      <div className="meta">
+        {p ? <span className="chip" style={{ background: p.color, color: '#fff' }}>{p.name}</span> : c ? <span className="chip">{c.name}</span> : null}
+        {left ? <span className="chip amber">{left} việc sau họp</span> : null}
+      </div>
+    </div>
+  );
 }

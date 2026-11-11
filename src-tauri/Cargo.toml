@@ -1,6 +1,6 @@
 [package]
 name = "bakit"
-version = "0.1.0"
+version = "0.2.0"
 description = "BAKit — chụp, sửa ảnh, ghi chú, việc, lịch và checklist dự án cho BA"
 edition = "2021"
 
