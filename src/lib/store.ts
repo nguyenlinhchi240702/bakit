@@ -26,7 +26,8 @@ interface State {
   view: View;
   toast: Toast | null;
   webShots: ScreenShot[] | null;       // in-page capture overlay (browser demo)
-  captureTarget: { kind: 'item' | 'task' | 'meeting'; id: string } | null; // attach next capture to this record
+  captureTarget: { kind: 'item' | 'task' | 'meeting'; id: string } | null;
+  update: { version: string; current: string; notes?: string } | null; // newer version available (desktop) // attach next capture to this record
 
   init(): Promise<void>;
   go(v: View): void;
@@ -130,6 +131,7 @@ export const useStore = create<State>((set, get) => ({
   toast: null,
   webShots: null,
   captureTarget: null,
+  update: null,
 
   async init() {
     try {

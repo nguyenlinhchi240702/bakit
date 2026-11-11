@@ -236,29 +236,28 @@ demo/index.html           Bản web 1 file để chạy thử
 
 ---
 
-## 8. Build tự động trên GitHub (ra file .exe và .dmg, không cần máy Windows)
+## 8. Build tự động trên GitHub và tự cập nhật trong app
 
-Thư mục `.github/workflows/build.yml` đã có sẵn. Khi bạn đẩy code lên GitHub, GitHub sẽ tự build trong khoảng 10–20 phút và cho ra 2 file:
-- **BAKit-windows**: `BAKit_0.2.0_x64-setup.exe` và `.msi`
-- **BAKit-macos**: `BAKit_0.2.0_universal.dmg`, chạy được cả Mac chip M lẫn chip Intel
+Mỗi lần push lên nhánh `main`, GitHub sẽ tự build trong khoảng 15–20 phút rồi đăng một **Release** tên `BAKit vX.Y.Z` (xem ở trang repo → **Releases**). Release gồm:
+- `BAKit_X.Y.Z_universal.dmg`: bản Mac, chạy được cả chip M lẫn Intel.
+- `BAKit_X.Y.Z_x64-setup.exe`: bản Windows.
+- `latest.json`: file app đọc để biết có bản mới.
 
-### Lần đầu
-1. Tạo tài khoản GitHub ở https://github.com (đã có thì bỏ qua bước này).
-2. Cài **GitHub Desktop** từ https://desktop.github.com, mở app và đăng nhập GitHub.
-3. Vào **File → Add Local Repository…** và chọn thư mục `bakit`.
-   - App báo "This directory does not appear to be a Git repository" thì bấm **create a repository**.
-   - Ở màn hình tạo repo, giữ nguyên tên, bấm **Create Repository**.
-4. Bấm **Publish repository**, tick **Keep this code private**, rồi bấm **Publish**.
-5. Mở repo trên web: **Repository → View on GitHub**, chọn tab **Actions**. Lần build đầu tiên tự chạy (biểu tượng vàng nghĩa là đang chạy).
-6. Khi biểu tượng chuyển xanh ✓, bấm vào lần chạy đó, kéo xuống mục **Artifacts** và tải **BAKit-windows** / **BAKit-macos**. File tải về là .zip, giải nén ra sẽ thấy .exe hoặc .dmg.
+Khi BAKit đã được cài, app tự kiểm tra bản mới lúc mở (cần mạng). Bạn cũng có thể vào **Cài đặt → Kiểm tra cập nhật** rồi bấm **Cập nhật ngay**. App sẽ tải bản mới, cài đè và tự mở lại. Dữ liệu của bạn không bị ảnh hưởng.
 
-### Mỗi lần có code mới
-1. Giải nén code mới đè lên thư mục `bakit`.
-2. Mở GitHub Desktop: ô dưới bên trái gõ mô tả ngắn (ví dụ "Cập nhật giao diện"), bấm **Commit to main**, rồi bấm **Push origin**.
-3. Chờ build xong trong tab Actions và tải file mới về.
+### Cài đặt lần đầu (làm 1 lần)
+1. Repo phải để **Public**: vào Settings → General → Danger Zone → Change visibility → Public. Nếu repo Private, app không tải được bản cập nhật.
+2. Thêm khóa ký bản cập nhật: vào Settings → Secrets and variables → Actions → **New repository secret**.
+   - Name: `TAURI_SIGNING_PRIVATE_KEY`
+   - Secret: toàn bộ nội dung file `bakit-updater.key`.
+   - Giữ kỹ file này. Mất khóa thì các bản đã cài sẽ không nhận được cập nhật nữa.
+3. Push code lên. Đợi Release đầu tiên xong thì tải file `.dmg` hoặc `.exe` và cài bằng tay **một lần**. Từ bản sau, cập nhật bằng nút trong app.
+
+### Mỗi bản mới
+- Tăng `version` ở **cả hai** file `package.json` và `src-tauri/tauri.conf.json` (ví dụ 0.3.0 → 0.3.1), rồi push. App chỉ cập nhật khi số phiên bản lớn hơn bản đang chạy.
+- Nếu build báo đỏ ✗: bấm vào lần chạy → chọn job đỏ → copy đoạn lỗi gửi lại để sửa.
 
 ### Lưu ý
-- Repo private được miễn phí 2.000 phút build mỗi tháng. Phút build trên Mac tính gấp 10 và trên Windows gấp 2, nên mỗi lần build tốn khoảng 120–200 phút, tức khoảng 10–15 lần build mỗi tháng. Repo public thì không giới hạn.
-- Mở .exe trên Windows, nếu hiện "Windows protected your PC" thì bấm **More info → Run anyway**. Máy công ty có thể chặn cài app chưa ký, khi đó cần hỏi IT.
-- Mở .dmg trên Mac, nếu bị chặn thì vào **System Settings → Privacy & Security**, kéo xuống và bấm **Open Anyway**. Cách khác là chạy lệnh `xattr -cr /Applications/BAKit.app`.
-- Nếu build báo đỏ ✗: bấm vào lần chạy → chọn job bị đỏ → mở bước bị lỗi, copy đoạn lỗi gửi lại để sửa.
+- Trên Mac: sau mỗi lần cập nhật, macOS có thể tắt quyền **Ghi màn hình** vì app không có chữ ký Apple. Nếu chụp chỉ ra hình nền: vào System Settings → Privacy & Security → Screen & System Audio Recording, xóa BAKit (−) rồi thêm lại (+).
+- Lần đầu mở file .dmg tải từ GitHub, nếu Mac chặn thì vào System Settings → Privacy & Security, bấm **Open Anyway**.
+- Trên Windows: nếu hiện "Windows protected your PC", bấm **More info → Run anyway**.

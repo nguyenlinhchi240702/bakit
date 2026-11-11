@@ -16,6 +16,8 @@ import { ProjectView } from './views/ProjectView';
 import { ImagesView } from './views/ImagesView';
 import { SettingsView } from './views/SettingsView';
 import { MeetingsView } from './views/MeetingsView';
+import { UpdateDialog } from './components/UpdateDialog';
+import { checkForUpdate } from './lib/updater';
 
 function useTheme() {
   const theme = useStore((s) => s.settings.theme);
@@ -45,6 +47,9 @@ export default function App() {
     if (!ready) return;
     startReminders();
     listenOverlayEvents();
+    // Quietly look for a new version a few seconds after start.
+    const t = setTimeout(() => { checkForUpdate(false); }, 8000);
+    return () => clearTimeout(t);
   }, [ready]);
 
   useEffect(() => {
@@ -133,6 +138,7 @@ export default function App() {
         <CaptureOverlay shot={webShots[0]} onDone={(r) => finishWebCapture(webShots[0], r)} onCancel={cancelWebCapture} />
       ) : null}
       <ToastHost />
+      <UpdateDialog />
     </div>
   );
 }

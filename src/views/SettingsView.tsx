@@ -3,6 +3,7 @@ import { useStore, type BackupData } from '../lib/store';
 import { Icon } from '../components/Icon';
 import { Confirm, Modal } from '../components/ui';
 import { applyImport, buildPlan, readWorkbook, type ImportPlan } from '../lib/excelImport';
+import { appVersion, checkForUpdate } from '../lib/updater';
 import templateUrl from '../assets/BAKit_du_lieu_ban_dau.xlsx?url';
 import { blobToDataUrl, dataFolder, dataUrlToBlob, isMac, isTauri, kb, openDataFolder, registerHotkey, saveBlobAs } from '../lib/platform';
 import { getDb } from '../lib/db';
@@ -19,6 +20,9 @@ export function SettingsView() {
   const [plan, setPlan] = useState<{ plan: ImportPlan; file: string } | null>(null);
   const [azure, setAzure] = useState(settings.azureBase || '');
   const [askDemo, setAskDemo] = useState(false);
+  const [version, setVersion] = useState('');
+  const [checking, setChecking] = useState(false);
+  useEffect(() => { appVersion().then(setVersion); }, []);
 
   const downloadTemplate = async () => {
     try {
@@ -175,7 +179,10 @@ export function SettingsView() {
           </div>
         </section>
       </div>
-      <span className="muted" style={{ fontSize: 12 }}>BAKit 0.2.0 · {isTauri ? (isMac ? 'Ứng dụng macOS' : 'Ứng dụng Windows') : 'Bản chạy thử trên trình duyệt'}</span>
+      <div className="row" style={{ gap: 10 }}>
+        <span className="muted" style={{ fontSize: 12 }}>BAKit {version} · {isTauri ? (isMac ? 'Ứng dụng macOS' : 'Ứng dụng Windows') : 'Bản chạy thử trên trình duyệt'}</span>
+        {isTauri ? <button className="btn sm" disabled={checking} onClick={async () => { setChecking(true); await checkForUpdate(true); setChecking(false); }}><Icon name="refresh" size={13} />{checking ? 'Đang kiểm tra…' : 'Kiểm tra cập nhật'}</button> : null}
+      </div>
       {askDemo ? <Confirm title="Nạp dữ liệu mẫu?" okLabel="Nạp dữ liệu mẫu" body="Thêm 3 dự án, việc và lịch hẹn mẫu vào dữ liệu hiện có để xem thử tính năng. Xóa sau bằng “Xóa toàn bộ dữ liệu”."
         onOk={async () => { const { seedDemo } = await import('../lib/seed'); seedDemo(); showToast('Đã nạp dữ liệu mẫu'); }} onClose={() => setAskDemo(false)} /> : null}
       {plan ? <ImportPreview plan={plan.plan} file={plan.file} busy={busy} onChange={(p) => setPlan({ ...plan, plan: p })} onOk={runImport} onClose={() => setPlan(null)} /> : null}
